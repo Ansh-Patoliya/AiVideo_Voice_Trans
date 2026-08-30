@@ -1,0 +1,163 @@
+# =================================================================
+# .gitignore for AI Video & Voice Transcriber (FastAPI + React/Vite)
+# =================================================================
+
+# --------------------------------------------------
+# Environment Variables & Secrets (CRITICAL)
+# --------------------------------------------------
+.env
+.env.*
+*.env
+backend/.env
+frontend/.env
+frontend/.env.*
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# Allow example files
+!.env.example
+!backend/.env.example
+!frontend/.env.example
+
+# --------------------------------------------------
+# Python & Virtual Environments
+# --------------------------------------------------
+venv/
+.venv/
+env/
+ENV/
+backend/venv/
+backend/.venv/
+backend/env/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+backend/**/__pycache__/
+
+# Distribution / packaging
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+
+# --------------------------------------------------
+# Node & Frontend (React / Vite)
+# --------------------------------------------------
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/build/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+*.log
+
+# Editor & linter caches
+.eslintcache
+.stylelintcache
+
+# --------------------------------------------------
+# Databases & SQLite
+# --------------------------------------------------
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+transcriber.db
+backend/transcriber.db
+
+# --------------------------------------------------
+# Media, Audio, Video & Temp Processing Files (Avoid GitHub Limits)
+# --------------------------------------------------
+# Keep directories via .gitkeep but ignore all media content
+backend/media_storage/*
+!backend/media_storage/.gitkeep
+
+backend/temp_processing/*
+!backend/temp_processing/.gitkeep
+
+media_storage/*
+!media_storage/.gitkeep
+
+temp_processing/*
+!temp_processing/.gitkeep
+
+uploads/*
+!uploads/.gitkeep
+
+# Catch-all for heavy video/audio formats
+*.mp4
+*.m4a
+*.mp3
+*.wav
+*.webm
+*.ogg
+*.flac
+*.aac
+*.avi
+*.mkv
+*.mov
+*.wmv
+
+# --------------------------------------------------
+# Celery / Redis / Task Queues
+# --------------------------------------------------
+celerybeat-schedule
+celerybeat-schedule.*
+celerybeat.pid
+
+# --------------------------------------------------
+# Operating System & IDE Files
+# --------------------------------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# IDEs (VS Code, PyCharm, WebStorm, etc.)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
