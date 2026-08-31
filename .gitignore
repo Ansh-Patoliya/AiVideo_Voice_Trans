@@ -115,6 +115,7 @@ uploads/*
 
 # Catch-all for heavy video/audio formats
 *.mp4
+!Video.mp4
 *.m4a
 *.mp3
 *.wav

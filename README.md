@@ -4,6 +4,16 @@ An intelligent web application that converts **Video and Audio into accurate, ti
 
 ---
 
+## 🎬 Live Project Demo
+
+<p align="center">
+  <video src="./Video.mp4" controls width="100%" style="max-width: 850px; border-radius: 12px; border: 1px solid #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+    Your browser does not support the video tag.
+  </video>
+</p>
+
+---
+
 ## ✨ Key Features
 
 - **Multi-Source Input:** Upload local files (MP4, MP3, WAV, MOV) or paste URLs (YouTube, Shorts, Reels).
