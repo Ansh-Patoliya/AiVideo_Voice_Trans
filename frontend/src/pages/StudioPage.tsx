@@ -11,6 +11,10 @@ import {
   StickyNote,
   AlertCircle,
   Loader2,
+  Maximize2,
+  Minimize2,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { MediaItem, Transcript, Bookmark, Note } from '../types';
 import { VideoPlayer, VideoPlayerRef } from '../components/player/VideoPlayer';
@@ -40,6 +44,8 @@ export const StudioPage: React.FC<StudioPageProps> = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [activeSecondaryTab, setActiveSecondaryTab] = useState<'ai' | 'bookmarks' | 'notes'>('ai');
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [isTheaterMode, setIsTheaterMode] = useState(false);
+  const [isBottomPanelCollapsed, setIsBottomPanelCollapsed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -262,6 +268,20 @@ export const StudioPage: React.FC<StudioPageProps> = ({
             <Star className={`w-3.5 h-3.5 ${media.is_favourite ? 'fill-current' : ''}`} />
           </button>
 
+          {/* Theater Mode Toggle */}
+          <button
+            onClick={() => setIsTheaterMode(!isTheaterMode)}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+              isTheaterMode
+                ? 'bg-blue-600/20 text-blue-400 border-blue-500/40 shadow-sm'
+                : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:bg-slate-800 hover:text-white'
+            }`}
+            title={isTheaterMode ? 'Exit Theater Mode' : 'Expand Video Player (Theater Mode)'}
+          >
+            {isTheaterMode ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline">{isTheaterMode ? 'Standard View' : 'Theater Mode'}</span>
+          </button>
+
           {/* More Actions Menu (...) */}
           <div className="relative" ref={moreMenuRef}>
             <button
@@ -297,8 +317,8 @@ export const StudioPage: React.FC<StudioPageProps> = ({
 
       {/* Main 2-Column Split Studio Workspace */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 flex-1 min-h-0 overflow-hidden">
-        {/* Left Column: Video Player & Secondary Tab Panels (6 cols) */}
-        <div className="lg:col-span-6 flex flex-col gap-3 h-full overflow-y-auto pr-0.5">
+        {/* Left Column: Video Player & Secondary Tab Panels (7 cols default, 8 cols in theater mode) */}
+        <div className={`${isTheaterMode ? 'lg:col-span-8' : 'lg:col-span-7'} flex flex-col gap-3 h-full overflow-y-auto pr-0.5 transition-all duration-300`}>
           {/* Video Player */}
           {mediaSourceUrl ? (
             <VideoPlayer
@@ -318,82 +338,105 @@ export const StudioPage: React.FC<StudioPageProps> = ({
           )}
 
           {/* Secondary Tabbed Workspace (AI Insights / Bookmarks / Notes) */}
-          <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3.5 flex-1 shadow-lg space-y-3">
-            {/* Clean Tab Switcher */}
-            <div className="flex items-center gap-1 border-b border-slate-800/80 pb-2">
-              <button
-                onClick={() => setActiveSecondaryTab('ai')}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
-                  activeSecondaryTab === 'ai'
-                    ? 'bg-slate-800 text-slate-100 shadow-sm font-semibold'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Sparkles className="w-3 h-3 text-blue-400" />
-                <span>AI Insights</span>
-              </button>
+          <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3.5 shadow-lg space-y-3 shrink-0">
+            {/* Clean Tab Switcher & Collapse Toggle */}
+            <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => {
+                    setActiveSecondaryTab('ai');
+                    setIsBottomPanelCollapsed(false);
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                    activeSecondaryTab === 'ai' && !isBottomPanelCollapsed
+                      ? 'bg-slate-800 text-slate-100 shadow-sm font-semibold'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Sparkles className="w-3 h-3 text-blue-400" />
+                  <span>AI Insights</span>
+                </button>
 
-              <button
-                onClick={() => setActiveSecondaryTab('bookmarks')}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
-                  activeSecondaryTab === 'bookmarks'
-                    ? 'bg-slate-800 text-slate-100 shadow-sm font-semibold'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <BookmarkIcon className="w-3 h-3 text-amber-400" />
-                <span>Bookmarks ({bookmarks.length})</span>
-              </button>
+                <button
+                  onClick={() => {
+                    setActiveSecondaryTab('bookmarks');
+                    setIsBottomPanelCollapsed(false);
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                    activeSecondaryTab === 'bookmarks' && !isBottomPanelCollapsed
+                      ? 'bg-slate-800 text-slate-100 shadow-sm font-semibold'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <BookmarkIcon className="w-3 h-3 text-amber-400" />
+                  <span>Bookmarks ({bookmarks.length})</span>
+                </button>
 
+                <button
+                  onClick={() => {
+                    setActiveSecondaryTab('notes');
+                    setIsBottomPanelCollapsed(false);
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                    activeSecondaryTab === 'notes' && !isBottomPanelCollapsed
+                      ? 'bg-slate-800 text-slate-100 shadow-sm font-semibold'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <StickyNote className="w-3 h-3 text-blue-400" />
+                  <span>Notes ({notes.length})</span>
+                </button>
+              </div>
+
+              {/* Collapse/Expand button for bottom panel */}
               <button
-                onClick={() => setActiveSecondaryTab('notes')}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
-                  activeSecondaryTab === 'notes'
-                    ? 'bg-slate-800 text-slate-100 shadow-sm font-semibold'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
+                onClick={() => setIsBottomPanelCollapsed(!isBottomPanelCollapsed)}
+                className="p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg text-[11px] flex items-center gap-1 transition-colors"
+                title={isBottomPanelCollapsed ? 'Expand panel' : 'Collapse panel'}
               >
-                <StickyNote className="w-3 h-3 text-blue-400" />
-                <span>Notes ({notes.length})</span>
+                <span>{isBottomPanelCollapsed ? 'Show Details' : 'Minimize'}</span>
+                {isBottomPanelCollapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
               </button>
             </div>
 
-            {/* Tab Body */}
-            <div>
-              {activeSecondaryTab === 'ai' && transcript && (
-                <AIInsightsPanel
-                  mediaId={media.id}
-                  transcript={transcript}
-                  onSeek={handleSeek}
-                  onRefreshTranscript={loadStudioData}
-                />
-              )}
+            {/* Tab Body (Collapsible) */}
+            {!isBottomPanelCollapsed && (
+              <div className="pt-1">
+                {activeSecondaryTab === 'ai' && transcript && (
+                  <AIInsightsPanel
+                    mediaId={media.id}
+                    transcript={transcript}
+                    onSeek={handleSeek}
+                    onRefreshTranscript={loadStudioData}
+                  />
+                )}
 
-              {activeSecondaryTab === 'bookmarks' && (
-                <BookmarksPanel
-                  mediaId={media.id}
-                  bookmarks={bookmarks}
-                  currentTime={currentTime}
-                  onSeek={handleSeek}
-                  onRefreshBookmarks={loadStudioData}
-                />
-              )}
+                {activeSecondaryTab === 'bookmarks' && (
+                  <BookmarksPanel
+                    mediaId={media.id}
+                    bookmarks={bookmarks}
+                    currentTime={currentTime}
+                    onSeek={handleSeek}
+                    onRefreshBookmarks={loadStudioData}
+                  />
+                )}
 
-              {activeSecondaryTab === 'notes' && (
-                <NotesPanel
-                  mediaId={media.id}
-                  notes={notes}
-                  currentTime={currentTime}
-                  onSeek={handleSeek}
-                  onRefreshNotes={loadStudioData}
-                />
-              )}
-            </div>
+                {activeSecondaryTab === 'notes' && (
+                  <NotesPanel
+                    mediaId={media.id}
+                    notes={notes}
+                    currentTime={currentTime}
+                    onSeek={handleSeek}
+                    onRefreshNotes={loadStudioData}
+                  />
+                )}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Right Column: Synchronized Interactive Transcript (6 cols) */}
-        <div className="lg:col-span-6 h-full flex flex-col min-h-0">
+        {/* Right Column: Synchronized Interactive Transcript (5 cols default, 4 cols in theater) */}
+        <div className={`${isTheaterMode ? 'lg:col-span-4' : 'lg:col-span-5'} h-full flex flex-col min-h-0 transition-all duration-300`}>
           {transcript ? (
             <TranscriptViewer
               transcript={transcript}

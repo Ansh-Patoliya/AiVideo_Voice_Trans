@@ -10,6 +10,7 @@ import {
   Bookmark as BookmarkIcon,
   ChevronDown,
   Music,
+  Crop,
 } from 'lucide-react';
 import { formatTime } from '../../utils/formatters';
 import { Bookmark } from '../../types';
@@ -42,6 +43,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
     const [isMuted, setIsMuted] = useState(false);
     const [playbackRate, setPlaybackRate] = useState(1);
     const [isSpeedMenuOpen, setIsSpeedMenuOpen] = useState(false);
+    const [isFillMode, setIsFillMode] = useState(false);
 
     useImperativeHandle(ref, () => ({
       seekTo: (seconds: number) => {
@@ -168,7 +170,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
             <video
               ref={mediaRef as React.RefObject<HTMLVideoElement>}
               src={src}
-              className="w-full h-full object-contain cursor-pointer"
+              className={`w-full h-full ${isFillMode ? 'object-cover' : 'object-contain'} cursor-pointer transition-all duration-200`}
               onClick={togglePlay}
               onPlay={() => setIsPlaying(true)}
               onPause={() => setIsPlaying(false)}
@@ -342,6 +344,21 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
                   </>
                 )}
               </div>
+
+              {/* Fit / Fill Frame Mode Toggle */}
+              {mediaType === 'video' && (
+                <button
+                  onClick={() => setIsFillMode(!isFillMode)}
+                  className={`p-1 rounded-lg transition-colors ${
+                    isFillMode
+                      ? 'bg-blue-600/20 text-blue-400'
+                      : 'hover:bg-slate-800 text-slate-400 hover:text-white'
+                  }`}
+                  title={isFillMode ? 'Switch to Fit (Original Ratio)' : 'Switch to Fill Frame (Remove Black Bars)'}
+                >
+                  <Crop className="w-3.5 h-3.5" />
+                </button>
+              )}
 
               {/* Fullscreen */}
               {mediaType === 'video' && (
