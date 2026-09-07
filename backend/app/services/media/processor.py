@@ -130,10 +130,11 @@ class MediaProcessor:
         if not output_audio_path:
             output_audio_path = str(Path(settings.TEMP_DIR_PATH) / f"{input_path.stem}_audio.mp3")
 
-        # Fast speech-optimized 16kHz mono MP3 (64kbps) without CPU-heavy filters
+        # Fast speech-optimized 16kHz mono MP3 (64kbps) with 1 thread for low RAM usage
         cmd = [
             self.ffmpeg_exe,
             "-y",
+            "-threads", "1",
             "-i", str(input_path),
             "-vn",
             "-ar", "16000",
@@ -152,6 +153,7 @@ class MediaProcessor:
             standard_cmd = [
                 self.ffmpeg_exe,
                 "-y",
+                "-threads", "1",
                 "-i", str(input_path),
                 "-vn",
                 "-ar", "16000",
@@ -199,6 +201,7 @@ class MediaProcessor:
             cmd = [
                 self.ffmpeg_exe,
                 "-y",
+                "-threads", "1",
                 "-ss", str(start_time),
                 "-i", str(input_path),
                 "-t", str(current_duration),
@@ -213,6 +216,7 @@ class MediaProcessor:
                 cmd_reencode = [
                     self.ffmpeg_exe,
                     "-y",
+                    "-threads", "1",
                     "-ss", str(start_time),
                     "-i", str(input_path),
                     "-t", str(current_duration),

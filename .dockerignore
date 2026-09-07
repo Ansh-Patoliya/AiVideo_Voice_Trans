@@ -1,0 +1,17 @@
+.git
+.gitignore
+README.md
+frontend/node_modules
+frontend/dist
+backend/venv
+backend/temp_processing
+backend/media_storage
+backend/*.db
+backend/*.sqlite3
+backend/__pycache__
+Video.mp4
+*.mp4
+*.mp3
+*.wav
+*.pyc
+__pycache__
