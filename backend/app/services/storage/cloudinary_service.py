@@ -62,7 +62,14 @@ class StorageService:
                     "duration": result.get("duration", 0.0)
                 }
             except Exception as e:
-                logger.error(f"Cloudinary upload failed: {e}. Falling back to local storage.")
+                err_msg = str(e)
+                if "File size too large" in err_msg or "104857600" in err_msg:
+                    logger.warning(
+                        f"File size ({file_size / (1024 * 1024):.1f}MB) exceeds Cloudinary Free Tier limit (100MB). "
+                        f"Falling back to local storage streaming."
+                    )
+                else:
+                    logger.error(f"Cloudinary upload failed: {e}. Falling back to local storage.")
 
         # Local storage fallback
         dest_dir = Path(settings.LOCAL_STORAGE_DIR)
