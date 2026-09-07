@@ -91,6 +91,11 @@ class MediaDownloader:
                 "socket_timeout": 30,
                 "ffmpeg_location": ffmpeg_path,
                 "js_runtimes": js_runtimes,
+                "extractor_args": {
+                    "youtube": {
+                        "player_client": ["android", "ios", "tv_embedded", "web"]
+                    }
+                },
                 "postprocessors": [{
                     "key": "FFmpegVideoConvertor",
                     "preferedformat": "mp4",
@@ -101,7 +106,7 @@ class MediaDownloader:
                 try:
                     info = ydl.extract_info(url, download=True)
                 except Exception as dl_err:
-                    logger.warning(f"yt-dlp primary download failed: {dl_err}. Retrying with generic best format...")
+                    logger.warning(f"yt-dlp primary download failed: {dl_err}. Retrying with mobile client fallback...")
                     # Fallback retry without postprocessor constraints
                     fallback_opts = {
                         "format": "best",
@@ -112,6 +117,11 @@ class MediaDownloader:
                         "socket_timeout": 30,
                         "ffmpeg_location": ffmpeg_path,
                         "js_runtimes": js_runtimes,
+                        "extractor_args": {
+                            "youtube": {
+                                "player_client": ["android", "ios", "tv_embedded"]
+                            }
+                        },
                     }
                     with yt_dlp.YoutubeDL(fallback_opts) as fallback_ydl:
                         info = fallback_ydl.extract_info(url, download=True)
