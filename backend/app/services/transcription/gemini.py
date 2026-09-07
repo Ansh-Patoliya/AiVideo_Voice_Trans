@@ -59,11 +59,14 @@ class GeminiTranscriptionProvider(TranscriptionProvider):
 
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or settings.GEMINI_API_KEY or os.environ.get("GEMINI_API_KEY")
-        self.model_name = (
+        model = (
             settings.GEMINI_TRANSCRIPTION_MODEL
             or settings.GEMINI_MODEL
-            or "gemini-3.5-flash"
+            or "gemini-3.1-flash-lite"
         )
+        if model in ("gemini-3.5-flash", "gemini-2.5-flash", "gemini-2.0-flash"):
+            model = "gemini-3.1-flash-lite"
+        self.model_name = model
         self._init_client()
 
     def _init_client(self):
