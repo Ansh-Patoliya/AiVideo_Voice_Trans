@@ -267,6 +267,10 @@ class GeminiTranscriptionProvider(TranscriptionProvider):
                         return response.text
                 except Exception as m_err:
                     last_model_err = m_err
+                    err_str = str(m_err)
+                    if "503" in err_str or "UNAVAILABLE" in err_str:
+                        import time
+                        time.sleep(1.5)
                     logger.warning(f"Transcription model {model_cand} call warning: {m_err}. Trying fallback...")
 
             # Cleanup uploaded remote file on error
@@ -319,6 +323,10 @@ class GeminiTranscriptionProvider(TranscriptionProvider):
                         return response.text
                 except Exception as m_err:
                     last_model_err = m_err
+                    err_str = str(m_err)
+                    if "503" in err_str or "UNAVAILABLE" in err_str:
+                        import time
+                        time.sleep(1.5)
                     logger.warning(f"Transcription model {model_cand} fallback failed: {m_err}")
 
             try:
