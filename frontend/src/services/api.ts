@@ -8,8 +8,10 @@ import {
   SearchResponse,
   User,
 } from '../types';
-
-const API_BASE = '/api';
+const rawApiUrl = import.meta.env.VITE_API_URL;
+export const API_BASE = rawApiUrl
+  ? `${rawApiUrl.replace(/\/+$/, '')}/api`
+  : '/api';
 
 const apiClient = axios.create({
   baseURL: API_BASE,

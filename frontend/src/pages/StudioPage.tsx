@@ -27,7 +27,7 @@ import { BookmarksPanel } from '../components/bookmarks/BookmarksPanel';
 import { NotesPanel } from '../components/notes/NotesPanel';
 import { StatusBadge } from '../components/layout/StatusBadge';
 import { formatTime, formatDate, getSourceLabel } from '../utils/formatters';
-import { api } from '../services/api';
+import { api, API_BASE } from '../services/api';
 
 interface StudioPageProps {
   mediaId: number;
@@ -207,7 +207,7 @@ export const StudioPage: React.FC<StudioPageProps> = ({
     );
   }
 
-  const mediaSourceUrl = media.cloudinary_url || (media.local_media_path ? `/api/media/stream/${media.local_media_path.split('\\').pop()?.split('/').pop()}` : '');
+  const mediaSourceUrl = media.cloudinary_url || (media.local_media_path ? `${API_BASE}/media/stream/${media.local_media_path.split('\\').pop()?.split('/').pop()}` : '');
 
   return (
     <div className="flex flex-col h-[calc(100vh-5rem)] space-y-3 pb-2 max-w-[1600px] mx-auto">
