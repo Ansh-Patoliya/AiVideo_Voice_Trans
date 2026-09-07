@@ -82,17 +82,24 @@ class MediaDownloader:
             js_runtimes = {"node": {"path": node_path}} if node_path else {}
 
             cookiefile_path = None
-            if getattr(settings, "YOUTUBE_COOKIES", None):
+            raw_cookies = getattr(settings, "YOUTUBE_COOKIES", None) or os.environ.get("YOUTUBE_COOKIES")
+            if raw_cookies and len(raw_cookies.strip()) > 10:
                 cookiefile_path = str(self.download_dir / "youtube_cookies.txt")
                 try:
+                    # Render environment variables escape newlines as literal \n, restore actual newlines and tabs
+                    clean_cookies = raw_cookies.replace("\\n", "\n").replace("\\t", "\t").strip()
                     with open(cookiefile_path, "w", encoding="utf-8") as cf:
-                        cf.write(settings.YOUTUBE_COOKIES.strip())
+                        cf.write(clean_cookies)
+                    logger.info(f"Loaded YouTube cookies ({len(clean_cookies)} bytes) for authenticated download.")
                 except Exception as c_err:
                     logger.warning(f"Could not write youtube_cookies.txt: {c_err}")
                     cookiefile_path = None
 
+            # When cookies are provided, use standard web client matching the cookies; otherwise use android
+            client_list = ["web"] if cookiefile_path else ["android"]
+
             ydl_opts = {
-                "format": "18/bestvideo[height<=720]+bestaudio/best[height<=720]/best",
+                "format": "bestvideo[height<=720]+bestaudio/best[height<=720]/best" if cookiefile_path else "18/bestvideo[height<=720]+bestaudio/best[height<=720]/best",
                 "outtmpl": out_template,
                 "quiet": True,
                 "no_warnings": True,
@@ -103,7 +110,7 @@ class MediaDownloader:
                 "js_runtimes": js_runtimes,
                 "extractor_args": {
                     "youtube": {
-                        "player_client": ["android"]
+                        "player_client": client_list
                     }
                 },
                 "postprocessors": [{
@@ -121,7 +128,7 @@ class MediaDownloader:
                     logger.warning(f"yt-dlp primary download failed: {dl_err}. Retrying with fallback...")
                     # Fallback retry without postprocessor constraints
                     fallback_opts = {
-                        "format": "18/best",
+                        "format": "best" if cookiefile_path else "18/best",
                         "outtmpl": out_template,
                         "quiet": True,
                         "no_warnings": True,
@@ -131,7 +138,7 @@ class MediaDownloader:
                         "js_runtimes": js_runtimes,
                         "extractor_args": {
                             "youtube": {
-                                "player_client": ["android"]
+                                "player_client": client_list
                             }
                         },
                     }
