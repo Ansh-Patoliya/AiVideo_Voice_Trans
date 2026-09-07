@@ -44,9 +44,9 @@ class Settings(BaseSettings):
 
     # Google Gemini API (backend-only)
     GEMINI_API_KEY: Optional[str] = None
-    GEMINI_TRANSCRIPTION_MODEL: str = "gemini-flash-latest"
-    GEMINI_ANALYSIS_MODEL: str = "gemini-flash-latest"
-    GEMINI_MODEL: str = "gemini-flash-latest"
+    GEMINI_TRANSCRIPTION_MODEL: str = "gemini-3.1-flash-lite"
+    GEMINI_ANALYSIS_MODEL: str = "gemini-3.1-flash-lite"
+    GEMINI_MODEL: str = "gemini-3.1-flash-lite"
 
     DEFAULT_TRANSCRIPTION_PROVIDER: str = "gemini"
 

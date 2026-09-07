@@ -30,6 +30,35 @@ class StorageService:
         else:
             logger.info("Cloudinary credentials not provided. Using local storage fallback.")
 
+    def _compress_video_for_upload(self, input_path: Path) -> Optional[Path]:
+        """Compresses large video (720p / crf 28 / ultrafast) so it stays safely under Cloudinary's 100MB limit."""
+        try:
+            import subprocess
+            from app.services.media.processor import MediaProcessor
+            ffmpeg_exe = MediaProcessor().ffmpeg_exe
+
+            opt_path = Path(settings.TEMP_DIR_PATH) / f"{input_path.stem}_cloud_opt.mp4"
+            cmd = [
+                ffmpeg_exe,
+                "-y",
+                "-i", str(input_path),
+                "-vf", "scale='min(1280,iw)':-2",
+                "-c:v", "libx264",
+                "-crf", "28",
+                "-preset", "ultrafast",
+                "-c:a", "aac",
+                "-b:a", "96k",
+                str(opt_path)
+            ]
+            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if res.returncode == 0 and opt_path.exists():
+                return opt_path
+            else:
+                logger.warning(f"Video compression warning: {res.stderr[:200]}")
+        except Exception as e:
+            logger.warning(f"Video compression failed: {e}")
+        return None
+
     def upload_file(self, file_path: str, media_type: str = "video") -> Dict[str, Any]:
         """
         Uploads a media file to Cloudinary or copies it to local permanent media store.
@@ -41,27 +70,54 @@ class StorageService:
 
         file_size = path.stat().st_size
 
+        target_upload_path = path
+        temp_compressed: Optional[Path] = None
+
         if self.has_cloudinary:
             try:
+                # If video > 90MB, automatically compress so it fits Cloudinary 100MB free tier
+                upload_bytes = file_size
+                if media_type == "video" and file_size > 90_000_000:
+                    logger.info(f"Video size ({file_size / (1024 * 1024):.1f}MB) > 90MB. Compressing for Cloudinary...")
+                    temp_compressed = self._compress_video_for_upload(path)
+                    if temp_compressed and temp_compressed.exists() and temp_compressed.stat().st_size < file_size:
+                        target_upload_path = temp_compressed
+                        upload_bytes = temp_compressed.stat().st_size
+                        logger.info(f"Compressed for Cloudinary: {file_size / (1024 * 1024):.1f}MB -> {upload_bytes / (1024 * 1024):.1f}MB")
+
                 resource_type = "video" if media_type == "video" else "auto"
-                upload_func = cloudinary.uploader.upload_large if (media_type == "video" or file_size > 15_000_000) else cloudinary.uploader.upload
+                upload_func = cloudinary.uploader.upload_large if (media_type == "video" or upload_bytes > 15_000_000) else cloudinary.uploader.upload
                 result = upload_func(
-                    file_path,
+                    str(target_upload_path),
                     resource_type=resource_type,
                     folder="aivideo_transcriber",
                     use_filename=True,
                     unique_filename=True
                 )
                 
+                # Cleanup temp compressed video
+                if temp_compressed and temp_compressed.exists() and temp_compressed != path:
+                    try:
+                        temp_compressed.unlink()
+                    except Exception:
+                        pass
+
                 return {
                     "public_id": result.get("public_id"),
                     "url": result.get("secure_url") or result.get("url"),
                     "local_path": str(path),
-                    "bytes": result.get("bytes", file_size),
+                    "bytes": result.get("bytes", upload_bytes),
                     "format": result.get("format", path.suffix.lstrip(".")),
                     "duration": result.get("duration", 0.0)
                 }
             except Exception as e:
+                # Cleanup temp compressed video on error
+                if temp_compressed and temp_compressed.exists() and temp_compressed != path:
+                    try:
+                        temp_compressed.unlink()
+                    except Exception:
+                        pass
+
                 err_msg = str(e)
                 if "File size too large" in err_msg or "104857600" in err_msg:
                     logger.warning(
