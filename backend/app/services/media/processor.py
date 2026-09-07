@@ -130,7 +130,7 @@ class MediaProcessor:
         if not output_audio_path:
             output_audio_path = str(Path(settings.TEMP_DIR_PATH) / f"{input_path.stem}_audio.mp3")
 
-        # Speech-optimized 16kHz mono MP3 (96kbps) with dynamic vocal booster and exact PTS lock
+        # Fast speech-optimized 16kHz mono MP3 (64kbps) without CPU-heavy filters
         cmd = [
             self.ffmpeg_exe,
             "-y",
@@ -139,8 +139,7 @@ class MediaProcessor:
             "-ar", "16000",
             "-ac", "1",
             "-avoid_negative_ts", "make_zero",
-            "-af", "dynaudnorm=p=0.95:m=10:s=12",
-            "-b:a", "96k",
+            "-b:a", "64k",
             output_audio_path
         ]
 
@@ -148,7 +147,7 @@ class MediaProcessor:
         result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         
         if result.returncode != 0:
-            logger.warning(f"Optimized MP3 extraction failed: {result.stderr}. Falling back to 16kHz PCM WAV...")
+            logger.warning(f"Fast MP3 extraction failed: {result.stderr}. Falling back to 16kHz PCM WAV...")
             output_audio_path = str(Path(settings.TEMP_DIR_PATH) / f"{input_path.stem}_audio.wav")
             standard_cmd = [
                 self.ffmpeg_exe,
@@ -194,7 +193,8 @@ class MediaProcessor:
 
         while start_time < total_duration:
             current_duration = min(chunk_dur, total_duration - start_time)
-            chunk_output = str(Path(settings.TEMP_DIR_PATH) / f"{input_path.stem}_chunk_{chunk_idx}.wav")
+            ext = input_path.suffix.lower() or ".mp3"
+            chunk_output = str(Path(settings.TEMP_DIR_PATH) / f"{input_path.stem}_chunk_{chunk_idx}{ext}")
 
             cmd = [
                 self.ffmpeg_exe,
@@ -208,16 +208,18 @@ class MediaProcessor:
 
             res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             if res.returncode != 0:
-                # Retry with re-encoding
+                # Retry with lightweight re-encoding
+                chunk_output = str(Path(settings.TEMP_DIR_PATH) / f"{input_path.stem}_chunk_{chunk_idx}.mp3")
                 cmd_reencode = [
                     self.ffmpeg_exe,
                     "-y",
                     "-ss", str(start_time),
                     "-i", str(input_path),
                     "-t", str(current_duration),
+                    "-vn",
                     "-ar", "16000",
                     "-ac", "1",
-                    "-c:a", "pcm_s16le",
+                    "-b:a", "64k",
                     chunk_output
                 ]
                 res_reencode = subprocess.run(cmd_reencode, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
