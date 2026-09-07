@@ -34,11 +34,16 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+cors_origins = list(settings.CORS_ORIGINS) + [
+    "https://ai-video-voice-trans.vercel.app",
+    "https://ai-video-voice-trans-backend.onrender.com",
+]
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if settings.DEBUG else settings.CORS_ORIGINS,
-    allow_origin_regex=r"https://.*\.vercel\.app" if not settings.DEBUG else None,
+    allow_origins=cors_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
