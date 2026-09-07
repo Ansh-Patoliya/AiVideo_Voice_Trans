@@ -37,7 +37,10 @@ CRITICAL TIME-SYNCHRONIZATION & ACCURACY RULES:
    - Transcribe exact spoken or sung words. Do not summarize, clean up, paraphrase, or alter lyrics.
 7. Australian & Regional English Nuances:
    - Accurately preserve colloquialisms, regional accents, Australian spelling and terms (e.g. "g'day", "arvo", "brekkie", "fair dinkum", "Melbourne") when spoken.
-8. Output Format:
+8. Continuous Complete Coverage (NO EARLY STOPPING):
+   - You MUST transcribe continuously through the ENTIRE duration of this audio clip from 0.0s to the final second.
+   - NEVER truncate early or skip the middle sections. Output every verse and chorus in chronological order.
+9. Output Format:
    - Return strictly a valid JSON object matching this schema without markdown or commentary outside the JSON:
 
 {

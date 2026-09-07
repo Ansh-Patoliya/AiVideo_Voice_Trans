@@ -57,11 +57,10 @@ class Settings(BaseSettings):
     FFMPEG_PATH: Optional[str] = None
     FFPROBE_PATH: Optional[str] = None
 
-    # Long Video / Audio Chunking Settings
-    # 300 seconds = 5 minutes chunk size for exhaustive, gap-free transcript density
-    TRANSCRIPTION_CHUNK_DURATION_SECONDS: int = 300
-    AUDIO_CHUNK_DURATION_SECONDS: int = 300
-    AUDIO_CHUNK_OVERLAP_SECONDS: int = 1
+    # 90 seconds chunk size for complete, gap-free, continuous transcript coverage
+    TRANSCRIPTION_CHUNK_DURATION_SECONDS: int = 90
+    AUDIO_CHUNK_DURATION_SECONDS: int = 90
+    AUDIO_CHUNK_OVERLAP_SECONDS: int = 2
     TRANSCRIPTION_MAX_CONCURRENCY: int = 1
 
     # Storage paths
