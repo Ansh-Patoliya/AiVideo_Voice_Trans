@@ -34,6 +34,7 @@ export const TranscriptViewer: React.FC<TranscriptViewerProps> = ({
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const [autoScroll, setAutoScroll] = useState(true);
   const [copiedAll, setCopiedAll] = useState(false);
+  const [showDiffMode, setShowDiffMode] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -106,6 +107,11 @@ export const TranscriptViewer: React.FC<TranscriptViewerProps> = ({
     }
   };
 
+  // Count segments that were modified from original transcript
+  const editedSegmentsCount = useMemo(() => {
+    return transcript.segments ? transcript.segments.filter((s) => s.is_edited).length : 0;
+  }, [transcript.segments]);
+
   // Handle inline segment edit
   const handleSaveSegmentEdit = async (
     segmentId: number,
@@ -113,6 +119,12 @@ export const TranscriptViewer: React.FC<TranscriptViewerProps> = ({
     newSpeaker?: string | null
   ) => {
     await api.transcripts.updateSegment(segmentId, { text: newText, speaker: newSpeaker });
+    onTranscriptUpdated();
+  };
+
+  // Handle revert to original transcript text
+  const handleRevertSegment = async (segmentId: number) => {
+    await api.transcripts.revertSegment(segmentId);
     onTranscriptUpdated();
   };
 
@@ -190,6 +202,22 @@ export const TranscriptViewer: React.FC<TranscriptViewerProps> = ({
 
         {/* Action Controls */}
         <div className="flex items-center gap-2">
+          {/* Changes / Diff Toggle Button */}
+          {editedSegmentsCount > 0 && (
+            <button
+              onClick={() => setShowDiffMode(!showDiffMode)}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                showDiffMode
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-500/10'
+                  : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
+              }`}
+              title={showDiffMode ? 'Hide word-level change diffs' : 'Show word-level change diffs'}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+              <span className="text-[11px]">Changes ({editedSegmentsCount})</span>
+            </button>
+          )}
+
           {/* Auto-scroll Toggle */}
           <button
             onClick={() => setAutoScroll(!autoScroll)}
@@ -240,8 +268,10 @@ export const TranscriptViewer: React.FC<TranscriptViewerProps> = ({
                 isActive={isActive}
                 searchQuery={searchQuery}
                 isCurrentSearchResult={isCurrentMatch}
+                showDiffMode={showDiffMode}
                 onSeek={onSeek}
                 onSaveEdit={handleSaveSegmentEdit}
+                onRevert={handleRevertSegment}
                 onBookmark={onAddBookmark}
               />
             );

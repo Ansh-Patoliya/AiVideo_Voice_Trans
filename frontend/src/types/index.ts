@@ -52,6 +52,8 @@ export interface TranscriptSegment {
   start_time: number;
   end_time: number;
   text: string;
+  original_text?: string | null;
+  is_edited?: boolean;
   speaker?: string | null;
   sequence: number;
   created_at?: string;
