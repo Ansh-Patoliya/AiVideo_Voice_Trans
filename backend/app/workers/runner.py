@@ -42,17 +42,25 @@ class ProcessingPipelineRunner:
         duration: Optional[float] = None
     ):
         """Helper to update media state in database."""
-        media = db.query(Media).filter(Media.id == media_id).first()
-        if media:
-            media.status = status.value
-            if error_message is not None:
-                media.error_message = error_message
-            if duration is not None and duration > 0:
-                media.duration = duration
-            media.updated_at = datetime.now(timezone.utc)
-            db.commit()
-            db.refresh(media)
-        return media
+        try:
+            media = db.query(Media).filter(Media.id == media_id).first()
+            if media:
+                media.status = status.value
+                if error_message is not None:
+                    media.error_message = error_message
+                if duration is not None and duration > 0:
+                    media.duration = duration
+                media.updated_at = datetime.now(timezone.utc)
+                db.commit()
+                db.refresh(media)
+            return media
+        except Exception as err:
+            logger.warning(f"Error updating media status: {err}")
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            return None
 
     async def _upload_storage_in_background(self, media_id: int, local_file: str, media_type: str):
         """Uploads media file to Cloudinary in the background without blocking transcription."""
@@ -202,6 +210,12 @@ class ProcessingPipelineRunner:
             logger.info(f"[PROFILING] STT Transcription finished: {stt_time:.2f}s ({len(all_segments)} segments)")
 
             # Step 5: Save Transcript to Database
+            # Verify media still exists (user might have deleted or cancelled it during processing)
+            media = db.query(Media).filter(Media.id == media_id).first()
+            if not media:
+                logger.info(f"Media {media_id} was deleted during processing. Skipping transcript save.")
+                return
+
             t_db_start = time.perf_counter()
             self._update_media_status(db, media_id, MediaStatus.SAVING)
             
@@ -209,16 +223,18 @@ class ProcessingPipelineRunner:
 
             existing_transcript = db.query(Transcript).filter(Transcript.media_id == media_id).first()
             if existing_transcript:
-                db.delete(existing_transcript)
-                db.commit()
-
-            transcript_record = Transcript(
-                media_id=media_id,
-                language=detected_language,
-                full_text=full_text,
-            )
-            db.add(transcript_record)
-            db.flush()
+                db.query(TranscriptSegment).filter(TranscriptSegment.transcript_id == existing_transcript.id).delete()
+                transcript_record = existing_transcript
+                transcript_record.language = detected_language
+                transcript_record.full_text = full_text
+            else:
+                transcript_record = Transcript(
+                    media_id=media_id,
+                    language=detected_language,
+                    full_text=full_text,
+                )
+                db.add(transcript_record)
+                db.flush()
 
             for seg in all_segments:
                 db_seg = TranscriptSegment(
@@ -247,7 +263,13 @@ class ProcessingPipelineRunner:
 
         except Exception as e:
             logger.error(f"Error in pipeline for media {media_id}: {e}\n{traceback.format_exc()}")
-            self._update_media_status(db, media_id, MediaStatus.FAILED, error_message=str(e))
+            try:
+                db.rollback()
+                media = db.query(Media).filter(Media.id == media_id).first()
+                if media:
+                    self._update_media_status(db, media_id, MediaStatus.FAILED, error_message=str(e))
+            except Exception as inner_err:
+                logger.warning(f"Could not update status for media {media_id}: {inner_err}")
         finally:
             self.processor.cleanup_files(temp_files_to_clean)
             db.close()
