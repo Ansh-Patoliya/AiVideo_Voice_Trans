@@ -244,7 +244,10 @@ async def apply_rephrase(
     for seg in segments:
         new_text = id_to_text.get(seg.id)
         if new_text:
+            if seg.original_text is None:
+                seg.original_text = seg.text
             seg.text = new_text
+            seg.is_edited = (seg.text != seg.original_text)
 
     # Recompute parent transcript full_text in sequential order
     all_segments = (

@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, Float, Text, ForeignKey, DateTime, JSON
+from sqlalchemy import Column, Integer, String, Float, Text, ForeignKey, DateTime, JSON, Boolean
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -30,6 +30,8 @@ class TranscriptSegment(Base):
     start_time = Column(Float, nullable=False, index=True)
     end_time = Column(Float, nullable=False)
     text = Column(Text, nullable=False)
+    original_text = Column(Text, nullable=True)
+    is_edited = Column(Boolean, default=False, server_default="false")
     speaker = Column(String(100), nullable=True)
     sequence = Column(Integer, nullable=False, default=0, index=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
