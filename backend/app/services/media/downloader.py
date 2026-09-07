@@ -81,6 +81,16 @@ class MediaDownloader:
             node_path = shutil.which("node")
             js_runtimes = {"node": {"path": node_path}} if node_path else {}
 
+            cookiefile_path = None
+            if getattr(settings, "YOUTUBE_COOKIES", None):
+                cookiefile_path = str(self.download_dir / "youtube_cookies.txt")
+                try:
+                    with open(cookiefile_path, "w", encoding="utf-8") as cf:
+                        cf.write(settings.YOUTUBE_COOKIES.strip())
+                except Exception as c_err:
+                    logger.warning(f"Could not write youtube_cookies.txt: {c_err}")
+                    cookiefile_path = None
+
             ydl_opts = {
                 "format": "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720]/best[ext=mp4]/best",
                 "outtmpl": out_template,
@@ -101,6 +111,8 @@ class MediaDownloader:
                     "preferedformat": "mp4",
                 }] if ffmpeg_path else [],
             }
+            if cookiefile_path:
+                ydl_opts["cookiefile"] = cookiefile_path
 
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 try:
@@ -123,6 +135,8 @@ class MediaDownloader:
                             }
                         },
                     }
+                    if cookiefile_path:
+                        fallback_opts["cookiefile"] = cookiefile_path
                     with yt_dlp.YoutubeDL(fallback_opts) as fallback_ydl:
                         info = fallback_ydl.extract_info(url, download=True)
 

@@ -48,8 +48,10 @@ class Settings(BaseSettings):
     GEMINI_ANALYSIS_MODEL: str = "gemini-3.5-flash"
     GEMINI_MODEL: str = "gemini-3.5-flash"
 
-    # Default Transcription Provider
     DEFAULT_TRANSCRIPTION_PROVIDER: str = "gemini"
+
+    # Optional YouTube Cookies to bypass datacenter bot detection on cloud servers
+    YOUTUBE_COOKIES: Optional[str] = None
 
     # FFmpeg executable path (leave empty for auto-detection)
     FFMPEG_PATH: Optional[str] = None
