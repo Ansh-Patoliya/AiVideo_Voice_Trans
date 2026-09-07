@@ -108,10 +108,6 @@ export const api = {
       const res = await apiClient.patch(`/transcripts/segments/${segmentId}`, data);
       return res.data;
     },
-    revertSegment: async (segmentId: number): Promise<TranscriptSegment> => {
-      const res = await apiClient.post(`/transcripts/segments/${segmentId}/revert`);
-      return res.data;
-    },
     deleteSegment: async (segmentId: number): Promise<void> => {
       await apiClient.delete(`/transcripts/segments/${segmentId}`);
     },

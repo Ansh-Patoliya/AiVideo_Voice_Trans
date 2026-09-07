@@ -242,8 +242,6 @@ class ProcessingPipelineRunner:
                     start_time=seg.start_time,
                     end_time=seg.end_time,
                     text=seg.text,
-                    original_text=seg.text,
-                    is_edited=False,
                     speaker=seg.speaker,
                     sequence=seg.sequence
                 )

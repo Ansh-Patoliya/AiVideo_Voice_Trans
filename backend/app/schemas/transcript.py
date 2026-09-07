@@ -23,8 +23,6 @@ class TranscriptSegmentUpdate(BaseModel):
 class TranscriptSegmentResponse(TranscriptSegmentBase):
     id: int
     transcript_id: int
-    original_text: Optional[str] = None
-    is_edited: bool = False
     created_at: datetime
     updated_at: datetime
 

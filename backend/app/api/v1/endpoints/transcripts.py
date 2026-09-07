@@ -86,50 +86,10 @@ def edit_transcript_segment(
     if not media:
         raise HTTPException(status_code=403, detail="Not authorized to edit this transcript segment")
 
-    # Ensure original_text is preserved on first edit
-    if segment.original_text is None:
-        segment.original_text = segment.text
-
     # Update text and speaker; preserve start_time and end_time
     segment.text = update_data.text.strip()
-    segment.is_edited = (segment.text != segment.original_text)
-
     if update_data.speaker is not None:
         segment.speaker = update_data.speaker.strip() if update_data.speaker else None
-
-    # Reconstruct full_text
-    all_segments = db.query(TranscriptSegment).filter(TranscriptSegment.transcript_id == transcript.id).order_by(TranscriptSegment.sequence).all()
-    transcript.full_text = " ".join([s.text for s in all_segments])
-
-    db.commit()
-    db.refresh(segment)
-    return segment
-
-
-@router.post("/segments/{segment_id}/revert", response_model=TranscriptSegmentResponse)
-def revert_transcript_segment(
-    segment_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Reverts a transcript segment back to its original AI-generated text.
-    """
-    segment = db.query(TranscriptSegment).filter(TranscriptSegment.id == segment_id).first()
-    if not segment:
-        raise HTTPException(status_code=404, detail="Transcript segment not found")
-
-    transcript = db.query(Transcript).filter(Transcript.id == segment.transcript_id).first()
-    if not transcript:
-        raise HTTPException(status_code=404, detail="Parent transcript not found")
-
-    media = db.query(Media).filter(Media.id == transcript.media_id, Media.user_id == current_user.id).first()
-    if not media:
-        raise HTTPException(status_code=403, detail="Not authorized to edit this transcript segment")
-
-    if segment.original_text is not None:
-        segment.text = segment.original_text
-    segment.is_edited = False
 
     # Reconstruct full_text
     all_segments = db.query(TranscriptSegment).filter(TranscriptSegment.transcript_id == transcript.id).order_by(TranscriptSegment.sequence).all()

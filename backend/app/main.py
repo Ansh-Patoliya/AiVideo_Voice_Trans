@@ -21,23 +21,6 @@ async def lifespan(app: FastAPI):
     # Initialize DB tables
     logger.info("Initializing database schema...")
     Base.metadata.create_all(bind=engine)
-    
-    # Auto-migrate new columns for existing tables
-    try:
-        from sqlalchemy import inspect, text
-        with engine.begin() as conn:
-            inspector = inspect(conn)
-            if "transcript_segments" in inspector.get_table_names():
-                columns = [c["name"] for c in inspector.get_columns("transcript_segments")]
-                if "original_text" not in columns:
-                    logger.info("Migrating schema: adding original_text to transcript_segments")
-                    conn.execute(text("ALTER TABLE transcript_segments ADD COLUMN original_text TEXT"))
-                if "is_edited" not in columns:
-                    logger.info("Migrating schema: adding is_edited to transcript_segments")
-                    conn.execute(text("ALTER TABLE transcript_segments ADD COLUMN is_edited BOOLEAN DEFAULT FALSE"))
-    except Exception as e:
-        logger.warning(f"Schema auto-migration check: {e}")
-
     logger.info("Database initialized.")
     yield
     logger.info("Shutting down application...")
