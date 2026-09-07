@@ -60,7 +60,7 @@ class ProcessingPipelineRunner:
         try:
             loop = asyncio.get_event_loop()
             storage_res = await loop.run_in_executor(
-                None, self.storage.upload_file, local_file, None, media_type
+                None, self.storage.upload_file, local_file, media_type
             )
             
             c_url = storage_res.get("url")

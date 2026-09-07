@@ -92,7 +92,8 @@ class MediaDownloader:
                     cookiefile_path = None
 
             ydl_opts = {
-                "format": "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720]/best[ext=mp4]/best",
+                "format": "bestvideo+bestaudio/best",
+                "format_sort": ["res:720", "ext:mp4:m4a"],
                 "outtmpl": out_template,
                 "quiet": True,
                 "no_warnings": True,
@@ -103,7 +104,7 @@ class MediaDownloader:
                 "js_runtimes": js_runtimes,
                 "extractor_args": {
                     "youtube": {
-                        "player_client": ["android", "ios", "tv_embedded", "web"]
+                        "player_client": ["android", "ios", "web"]
                     }
                 },
                 "postprocessors": [{
@@ -118,10 +119,10 @@ class MediaDownloader:
                 try:
                     info = ydl.extract_info(url, download=True)
                 except Exception as dl_err:
-                    logger.warning(f"yt-dlp primary download failed: {dl_err}. Retrying with mobile client fallback...")
+                    logger.warning(f"yt-dlp primary download failed: {dl_err}. Retrying with fallback...")
                     # Fallback retry without postprocessor constraints
                     fallback_opts = {
-                        "format": "best",
+                        "format": "b/bv*+ba/b",
                         "outtmpl": out_template,
                         "quiet": True,
                         "no_warnings": True,
@@ -131,7 +132,7 @@ class MediaDownloader:
                         "js_runtimes": js_runtimes,
                         "extractor_args": {
                             "youtube": {
-                                "player_client": ["android", "ios", "tv_embedded"]
+                                "player_client": ["android", "ios", "web"]
                             }
                         },
                     }
