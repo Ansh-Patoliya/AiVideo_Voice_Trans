@@ -244,39 +244,39 @@ class GeminiTranscriptionProvider(TranscriptionProvider):
                 "gemini-3.5-flash-lite",
                 "gemini-flash-lite-latest",
                 "gemini-flash-latest",
-                "gemini-3.8-flash",
-                "gemini-3.7-flash",
-                "gemini-3.6-flash",
             ]
             # Deduplicate while preserving order
             candidate_models = list(dict.fromkeys(candidate_models))
 
             last_model_err = None
             for model_cand in candidate_models:
-                try:
-                    response = client.models.generate_content(
-                        model=model_cand,
-                        contents=[uploaded_file, prompt],
-                        config=types.GenerateContentConfig(
-                            response_mime_type="application/json",
-                            temperature=0.0,
-                            max_output_tokens=16384,
-                        )
-                    )
-                    # Cleanup uploaded remote file
+                for retry in range(2):
                     try:
-                        client.files.delete(name=uploaded_file.name)
-                    except Exception:
-                        pass
-                    if response.text:
-                        return response.text
-                except Exception as m_err:
-                    last_model_err = m_err
-                    err_str = str(m_err)
-                    if "503" in err_str or "UNAVAILABLE" in err_str:
-                        import time
-                        time.sleep(1.5)
-                    logger.warning(f"Transcription model {model_cand} call warning: {m_err}. Trying fallback...")
+                        response = client.models.generate_content(
+                            model=model_cand,
+                            contents=[uploaded_file, prompt],
+                            config=types.GenerateContentConfig(
+                                response_mime_type="application/json",
+                                temperature=0.0,
+                                max_output_tokens=16384,
+                            )
+                        )
+                        # Cleanup uploaded remote file
+                        try:
+                            client.files.delete(name=uploaded_file.name)
+                        except Exception:
+                            pass
+                        if response.text:
+                            return response.text
+                    except Exception as m_err:
+                        last_model_err = m_err
+                        err_str = str(m_err)
+                        if ("503" in err_str or "UNAVAILABLE" in err_str) and retry == 0:
+                            import time
+                            time.sleep(2.0)
+                            continue
+                        break
+                logger.warning(f"Transcription model {model_cand} call warning: {last_model_err}. Trying fallback...")
 
             # Cleanup uploaded remote file on error
             try:
@@ -308,33 +308,33 @@ class GeminiTranscriptionProvider(TranscriptionProvider):
                 "gemini-3.5-flash-lite",
                 "gemini-flash-lite-latest",
                 "gemini-flash-latest",
-                "gemini-3.8-flash",
-                "gemini-3.7-flash",
-                "gemini-3.6-flash",
             ]
             candidate_models = list(dict.fromkeys(candidate_models))
 
             last_model_err = None
             for model_cand in candidate_models:
-                try:
-                    model = genai.GenerativeModel(
-                        model_name=model_cand,
-                        generation_config={"response_mime_type": "application/json", "temperature": 0.1}
-                    )
-                    response = model.generate_content([uploaded_file, prompt])
+                for retry in range(2):
                     try:
-                        genai.delete_file(uploaded_file.name)
-                    except Exception:
-                        pass
-                    if response.text:
-                        return response.text
-                except Exception as m_err:
-                    last_model_err = m_err
-                    err_str = str(m_err)
-                    if "503" in err_str or "UNAVAILABLE" in err_str:
-                        import time
-                        time.sleep(1.5)
-                    logger.warning(f"Transcription model {model_cand} fallback failed: {m_err}")
+                        model = genai.GenerativeModel(
+                            model_name=model_cand,
+                            generation_config={"response_mime_type": "application/json", "temperature": 0.1}
+                        )
+                        response = model.generate_content([uploaded_file, prompt])
+                        try:
+                            genai.delete_file(uploaded_file.name)
+                        except Exception:
+                            pass
+                        if response.text:
+                            return response.text
+                    except Exception as m_err:
+                        last_model_err = m_err
+                        err_str = str(m_err)
+                        if ("503" in err_str or "UNAVAILABLE" in err_str) and retry == 0:
+                            import time
+                            time.sleep(2.0)
+                            continue
+                        break
+                logger.warning(f"Transcription model {model_cand} fallback failed: {last_model_err}")
 
             try:
                 genai.delete_file(uploaded_file.name)
