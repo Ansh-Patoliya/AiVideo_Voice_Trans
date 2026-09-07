@@ -20,6 +20,7 @@ export function App() {
   const [mediaList, setMediaList] = useState<MediaItem[]>([]);
   const [pinnedList, setPinnedList] = useState<MediaItem[]>([]);
   const [favouriteList, setFavouriteList] = useState<MediaItem[]>([]);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
@@ -156,6 +157,8 @@ export function App() {
         }}
         pinnedCount={pinnedList.length}
         favouriteCount={favouriteList.length}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
       />
 
       {/* Main Content Area */}

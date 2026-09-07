@@ -208,7 +208,31 @@ export const api = {
       const res = await apiClient.post(`/ai/${mediaId}/important-sections`);
       return res.data;
     },
+    rephrasePreview: async (mediaId: number, data: {
+      scope: 'all' | 'particular';
+      segment_ids?: number[];
+      tone?: string;
+      custom_instruction?: string;
+    }): Promise<{
+      items: Array<{ segment_id: number; original_text: string; rephrased_text: string }>;
+      token_usage?: {
+        prompt_tokens: number;
+        candidates_tokens: number;
+        total_tokens: number;
+        estimated_cost_usd: number;
+      };
+    }> => {
+      const res = await apiClient.post(`/ai/${mediaId}/rephrase/preview`, data);
+      return res.data;
+    },
+    rephraseApply: async (mediaId: number, data: {
+      items: Array<{ segment_id: number; original_text: string; rephrased_text: string }>;
+    }) => {
+      const res = await apiClient.post(`/ai/${mediaId}/rephrase/apply`, data);
+      return res.data;
+    },
   },
+
 
   // Export URLs
   exports: {

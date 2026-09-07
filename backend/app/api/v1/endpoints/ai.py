@@ -12,11 +12,19 @@ from app.schemas.ai import (
     AIKeywordsResponse,
     AIImportantSectionsResponse,
     AIAnalysisFullResponse,
+    RephrasePreviewRequest,
+    RephrasePreviewResponse,
+    ApplyRephraseRequest,
+    RephraseItem,
+    TokenUsageInfo,
 )
 from app.services.ai.insights import AIInsightsService
+from app.services.ai.rephrase import AIRephraseService
 
 router = APIRouter(prefix="/ai", tags=["AI Insights"])
 ai_service = AIInsightsService()
+rephrase_service = AIRephraseService()
+
 
 
 def _get_transcript_and_segments(media_id: int, user_id: int, db: Session):
@@ -156,3 +164,97 @@ async def generate_important_sections(
         return AIImportantSectionsResponse(important_sections=transcript.important_sections)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to identify important sections: {str(e)}")
+
+
+@router.post("/{media_id}/rephrase/preview", response_model=RephrasePreviewResponse)
+async def generate_rephrase_preview(
+    media_id: int,
+    req: RephrasePreviewRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Generates rephrased alternatives for all or selected transcript segments without saving to DB."""
+    media = db.query(Media).filter(Media.id == media_id, Media.user_id == current_user.id).first()
+    if not media:
+        raise HTTPException(status_code=404, detail="Media not found")
+
+    transcript = db.query(Transcript).filter(Transcript.media_id == media_id).first()
+    if not transcript:
+        raise HTTPException(status_code=400, detail="Transcript is not available yet.")
+
+    query = db.query(TranscriptSegment).filter(TranscriptSegment.transcript_id == transcript.id)
+    if req.scope == "particular" and req.segment_ids:
+        query = query.filter(TranscriptSegment.id.in_(req.segment_ids))
+
+    segments = query.order_by(TranscriptSegment.sequence).all()
+    if not segments:
+        raise HTTPException(status_code=400, detail="No segments selected to rephrase.")
+
+    segments_data = [
+        {
+            "id": s.id,
+            "text": s.text,
+            "start_time": s.start_time,
+            "end_time": s.end_time,
+            "speaker": s.speaker,
+        }
+        for s in segments
+    ]
+
+    try:
+        output = await rephrase_service.rephrase_segments(
+            segments_data=segments_data,
+            tone=req.tone,
+            custom_instruction=req.custom_instruction,
+        )
+        return RephrasePreviewResponse(
+            items=[RephraseItem(**item) for item in output.get("items", [])],
+            token_usage=TokenUsageInfo(**output.get("token_usage", {})) if output.get("token_usage") else None,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to rephrase segments: {str(e)}")
+
+
+@router.post("/{media_id}/rephrase/apply")
+async def apply_rephrase(
+    media_id: int,
+    req: ApplyRephraseRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Commits accepted rephrased text into transcript segments and updates full text."""
+    media = db.query(Media).filter(Media.id == media_id, Media.user_id == current_user.id).first()
+    if not media:
+        raise HTTPException(status_code=404, detail="Media not found")
+
+    transcript = db.query(Transcript).filter(Transcript.media_id == media_id).first()
+    if not transcript:
+        raise HTTPException(status_code=400, detail="Transcript not found")
+
+    if not req.items:
+        raise HTTPException(status_code=400, detail="No rephrased items provided.")
+
+    id_to_text = {item.segment_id: item.rephrased_text.strip() for item in req.items}
+
+    segments = db.query(TranscriptSegment).filter(
+        TranscriptSegment.transcript_id == transcript.id,
+        TranscriptSegment.id.in_(list(id_to_text.keys()))
+    ).all()
+
+    for seg in segments:
+        new_text = id_to_text.get(seg.id)
+        if new_text:
+            seg.text = new_text
+
+    # Recompute parent transcript full_text in sequential order
+    all_segments = (
+        db.query(TranscriptSegment)
+        .filter(TranscriptSegment.transcript_id == transcript.id)
+        .order_by(TranscriptSegment.sequence)
+        .all()
+    )
+    transcript.full_text = " ".join([s.text for s in all_segments])
+
+    db.commit()
+    return {"message": "Rephrased segments successfully saved", "updated_count": len(segments)}
+

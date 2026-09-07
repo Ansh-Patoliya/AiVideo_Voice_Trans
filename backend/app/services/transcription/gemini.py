@@ -62,7 +62,7 @@ class GeminiTranscriptionProvider(TranscriptionProvider):
         self.model_name = (
             settings.GEMINI_TRANSCRIPTION_MODEL
             or settings.GEMINI_MODEL
-            or "gemini-3.5-transcribe"
+            or "gemini-3.5-flash"
         )
         self._init_client()
 

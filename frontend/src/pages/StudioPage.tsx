@@ -15,11 +15,14 @@ import {
   Minimize2,
   ChevronDown,
   ChevronUp,
+  Wand2,
+  FileText,
 } from 'lucide-react';
 import { MediaItem, Transcript, Bookmark, Note } from '../types';
 import { VideoPlayer, VideoPlayerRef } from '../components/player/VideoPlayer';
 import { TranscriptViewer } from '../components/transcript/TranscriptViewer';
 import { AIInsightsPanel } from '../components/ai/AIInsightsPanel';
+import { AIRephrasePanel } from '../components/rephrase/AIRephrasePanel';
 import { BookmarksPanel } from '../components/bookmarks/BookmarksPanel';
 import { NotesPanel } from '../components/notes/NotesPanel';
 import { StatusBadge } from '../components/layout/StatusBadge';
@@ -42,7 +45,7 @@ export const StudioPage: React.FC<StudioPageProps> = ({
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [currentTime, setCurrentTime] = useState(0);
-  const [activeSecondaryTab, setActiveSecondaryTab] = useState<'ai' | 'bookmarks' | 'notes'>('ai');
+  const [activeRightTab, setActiveRightTab] = useState<'transcript' | 'rephrase' | 'ai' | 'bookmarks' | 'notes'>('transcript');
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isTheaterMode, setIsTheaterMode] = useState(false);
   const [isBottomPanelCollapsed, setIsBottomPanelCollapsed] = useState(false);
@@ -120,14 +123,14 @@ export const StudioPage: React.FC<StudioPageProps> = ({
   };
 
   const handleAddBookmarkAtCurrentTime = (time: number) => {
-    setActiveSecondaryTab('bookmarks');
+    setActiveRightTab('bookmarks');
     api.bookmarks.create(mediaId, { timestamp: time, label: `Bookmark at ${formatTime(time)}` }).then(() => {
       loadStudioData();
     });
   };
 
   const handleAddBookmarkFromSegment = (time: number, defaultLabel: string) => {
-    setActiveSecondaryTab('bookmarks');
+    setActiveRightTab('bookmarks');
     api.bookmarks.create(mediaId, { timestamp: time, label: defaultLabel || `Bookmark at ${formatTime(time)}` }).then(() => {
       loadStudioData();
     });
@@ -317,9 +320,8 @@ export const StudioPage: React.FC<StudioPageProps> = ({
 
       {/* Main 2-Column Split Studio Workspace */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 flex-1 min-h-0 overflow-hidden">
-        {/* Left Column: Video Player & Secondary Tab Panels (7 cols default, 8 cols in theater mode) */}
-        <div className={`${isTheaterMode ? 'lg:col-span-8' : 'lg:col-span-7'} flex flex-col gap-3 h-full overflow-y-auto pr-0.5 transition-all duration-300`}>
-          {/* Video Player */}
+        {/* Left Column: Full-Height Clean Video Player */}
+        <div className={`${isTheaterMode ? 'lg:col-span-8' : 'lg:col-span-7'} flex flex-col h-full min-h-0 transition-all duration-300`}>
           {mediaSourceUrl ? (
             <VideoPlayer
               ref={playerRef}
@@ -336,82 +338,111 @@ export const StudioPage: React.FC<StudioPageProps> = ({
               <p>Media stream is currently being prepared.</p>
             </div>
           )}
+        </div>
 
-          {/* Secondary Tabbed Workspace (AI Insights / Bookmarks / Notes) */}
-          <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3.5 shadow-lg space-y-3 shrink-0">
-            {/* Clean Tab Switcher & Collapse Toggle */}
-            <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => {
-                    setActiveSecondaryTab('ai');
-                    setIsBottomPanelCollapsed(false);
-                  }}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
-                    activeSecondaryTab === 'ai' && !isBottomPanelCollapsed
-                      ? 'bg-slate-800 text-slate-100 shadow-sm font-semibold'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <Sparkles className="w-3 h-3 text-blue-400" />
-                  <span>AI Insights</span>
-                </button>
+        {/* Right Column: Unified Full-Height Studio Hub (Transcript, AI Rephrase, AI Insights, Bookmarks, Notes) */}
+        <div className={`${isTheaterMode ? 'lg:col-span-4' : 'lg:col-span-5'} h-full flex flex-col min-h-0 bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-xl transition-all duration-300`}>
+          {/* Top Multi-Tab Switcher */}
+          <div className="flex items-center gap-1 px-3 py-2 bg-slate-900/90 border-b border-slate-800 shrink-0 overflow-x-auto select-none">
+            <button
+              onClick={() => setActiveRightTab('transcript')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 ${
+                activeRightTab === 'transcript'
+                  ? 'bg-blue-600/20 text-blue-300 border border-blue-500/40 shadow-sm font-semibold'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5 text-blue-400" />
+              <span>Transcript</span>
+            </button>
 
-                <button
-                  onClick={() => {
-                    setActiveSecondaryTab('bookmarks');
-                    setIsBottomPanelCollapsed(false);
-                  }}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
-                    activeSecondaryTab === 'bookmarks' && !isBottomPanelCollapsed
-                      ? 'bg-slate-800 text-slate-100 shadow-sm font-semibold'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <BookmarkIcon className="w-3 h-3 text-amber-400" />
-                  <span>Bookmarks ({bookmarks.length})</span>
-                </button>
+            <button
+              onClick={() => setActiveRightTab('rephrase')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 ${
+                activeRightTab === 'rephrase'
+                  ? 'bg-purple-600/20 text-purple-300 border border-purple-500/40 shadow-sm font-semibold'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              }`}
+            >
+              <Wand2 className="w-3.5 h-3.5 text-purple-400" />
+              <span>AI Rephrase</span>
+            </button>
 
-                <button
-                  onClick={() => {
-                    setActiveSecondaryTab('notes');
-                    setIsBottomPanelCollapsed(false);
-                  }}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
-                    activeSecondaryTab === 'notes' && !isBottomPanelCollapsed
-                      ? 'bg-slate-800 text-slate-100 shadow-sm font-semibold'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <StickyNote className="w-3 h-3 text-blue-400" />
-                  <span>Notes ({notes.length})</span>
-                </button>
-              </div>
+            <button
+              onClick={() => setActiveRightTab('ai')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 ${
+                activeRightTab === 'ai'
+                  ? 'bg-blue-600/20 text-blue-300 border border-blue-500/40 shadow-sm font-semibold'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+              <span>AI Insights</span>
+            </button>
 
-              {/* Collapse/Expand button for bottom panel */}
-              <button
-                onClick={() => setIsBottomPanelCollapsed(!isBottomPanelCollapsed)}
-                className="p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg text-[11px] flex items-center gap-1 transition-colors"
-                title={isBottomPanelCollapsed ? 'Expand panel' : 'Collapse panel'}
-              >
-                <span>{isBottomPanelCollapsed ? 'Show Details' : 'Minimize'}</span>
-                {isBottomPanelCollapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
-              </button>
-            </div>
+            <button
+              onClick={() => setActiveRightTab('bookmarks')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 ${
+                activeRightTab === 'bookmarks'
+                  ? 'bg-amber-600/20 text-amber-300 border border-amber-500/40 shadow-sm font-semibold'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              }`}
+            >
+              <BookmarkIcon className="w-3.5 h-3.5 text-amber-400" />
+              <span>Bookmarks ({bookmarks.length})</span>
+            </button>
 
-            {/* Tab Body (Collapsible) */}
-            {!isBottomPanelCollapsed && (
-              <div className="pt-1">
-                {activeSecondaryTab === 'ai' && transcript && (
+            <button
+              onClick={() => setActiveRightTab('notes')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 ${
+                activeRightTab === 'notes'
+                  ? 'bg-blue-600/20 text-blue-300 border border-blue-500/40 shadow-sm font-semibold'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              }`}
+            >
+              <StickyNote className="w-3.5 h-3.5 text-blue-400" />
+              <span>Notes ({notes.length})</span>
+            </button>
+          </div>
+
+          {/* Tab Content Panes (Kept mounted to preserve state & calculations) */}
+          <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+            {transcript ? (
+              <>
+                {/* 1. Transcript Tab */}
+                <div className={`h-full flex flex-col min-h-0 ${activeRightTab === 'transcript' ? 'flex' : 'hidden'}`}>
+                  <TranscriptViewer
+                    transcript={transcript}
+                    mediaTitle={media.title}
+                    currentTime={currentTime}
+                    onSeek={handleSeek}
+                    onAddBookmark={handleAddBookmarkFromSegment}
+                    onTranscriptUpdated={loadStudioData}
+                  />
+                </div>
+
+                {/* 2. AI Rephrase Tab */}
+                <div className={`h-full flex flex-col min-h-0 overflow-y-auto p-4 ${activeRightTab === 'rephrase' ? 'block' : 'hidden'}`}>
+                  <AIRephrasePanel
+                    mediaId={media.id}
+                    transcript={transcript}
+                    onSeek={handleSeek}
+                    onRefreshTranscript={loadStudioData}
+                  />
+                </div>
+
+                {/* 3. AI Insights Tab */}
+                <div className={`h-full flex flex-col min-h-0 overflow-y-auto p-4 ${activeRightTab === 'ai' ? 'block' : 'hidden'}`}>
                   <AIInsightsPanel
                     mediaId={media.id}
                     transcript={transcript}
                     onSeek={handleSeek}
                     onRefreshTranscript={loadStudioData}
                   />
-                )}
+                </div>
 
-                {activeSecondaryTab === 'bookmarks' && (
+                {/* 4. Bookmarks Tab */}
+                <div className={`h-full flex flex-col min-h-0 overflow-y-auto p-4 ${activeRightTab === 'bookmarks' ? 'block' : 'hidden'}`}>
                   <BookmarksPanel
                     mediaId={media.id}
                     bookmarks={bookmarks}
@@ -419,9 +450,10 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                     onSeek={handleSeek}
                     onRefreshBookmarks={loadStudioData}
                   />
-                )}
+                </div>
 
-                {activeSecondaryTab === 'notes' && (
+                {/* 5. Notes Tab */}
+                <div className={`h-full flex flex-col min-h-0 overflow-y-auto p-4 ${activeRightTab === 'notes' ? 'block' : 'hidden'}`}>
                   <NotesPanel
                     mediaId={media.id}
                     notes={notes}
@@ -429,51 +461,37 @@ export const StudioPage: React.FC<StudioPageProps> = ({
                     onSeek={handleSeek}
                     onRefreshNotes={loadStudioData}
                   />
+                </div>
+              </>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center p-8 text-center text-slate-500 space-y-2">
+                {media.status === 'COMPLETED' ? (
+                  <>
+                    <Sparkles className="w-6 h-6 text-blue-500 animate-pulse" />
+                    <h4 className="text-xs font-semibold text-slate-300">Transcript Ready</h4>
+                    <p className="text-[11px] text-slate-500">Loading dialogue segments...</p>
+                  </>
+                ) : media.status === 'FAILED' ? (
+                  <>
+                    <AlertCircle className="w-6 h-6 text-rose-400" />
+                    <h4 className="text-xs font-semibold text-white">Transcription Failed</h4>
+                    <p className="text-[11px] text-rose-300 max-w-sm">{media.error_message}</p>
+                  </>
+                ) : (
+                  <>
+                    <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+                    <h4 className="text-xs font-semibold text-white">Processing Speech Audio</h4>
+                    <p className="text-[11px] text-slate-400 max-w-sm">
+                      {media.status === 'EXTRACTING_AUDIO' && 'Extracting audio stream...'}
+                      {media.status === 'TRANSCRIBING' && 'AI speech-to-text generating timestamps...'}
+                      {media.status === 'SAVING' && 'Saving transcript segments...'}
+                      {media.status === 'QUEUED' && 'In queue...'}
+                    </p>
+                  </>
                 )}
               </div>
             )}
           </div>
-        </div>
-
-        {/* Right Column: Synchronized Interactive Transcript (5 cols default, 4 cols in theater) */}
-        <div className={`${isTheaterMode ? 'lg:col-span-4' : 'lg:col-span-5'} h-full flex flex-col min-h-0 transition-all duration-300`}>
-          {transcript ? (
-            <TranscriptViewer
-              transcript={transcript}
-              mediaTitle={media.title}
-              currentTime={currentTime}
-              onSeek={handleSeek}
-              onAddBookmark={handleAddBookmarkFromSegment}
-              onTranscriptUpdated={loadStudioData}
-            />
-          ) : (
-            <div className="h-full bg-slate-950 border border-slate-800 rounded-2xl flex flex-col items-center justify-center p-8 text-center text-slate-500 space-y-2">
-              {media.status === 'COMPLETED' ? (
-                <>
-                  <Sparkles className="w-6 h-6 text-blue-500 animate-pulse" />
-                  <h4 className="text-xs font-semibold text-slate-300">Transcript Ready</h4>
-                  <p className="text-[11px] text-slate-500">Loading dialogue segments...</p>
-                </>
-              ) : media.status === 'FAILED' ? (
-                <>
-                  <AlertCircle className="w-6 h-6 text-rose-400" />
-                  <h4 className="text-xs font-semibold text-white">Transcription Failed</h4>
-                  <p className="text-[11px] text-rose-300 max-w-sm">{media.error_message}</p>
-                </>
-              ) : (
-                <>
-                  <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
-                  <h4 className="text-xs font-semibold text-white">Processing Speech Audio</h4>
-                  <p className="text-[11px] text-slate-400 max-w-sm">
-                    {media.status === 'EXTRACTING_AUDIO' && 'Extracting audio stream...'}
-                    {media.status === 'TRANSCRIBING' && 'AI speech-to-text generating timestamps...'}
-                    {media.status === 'SAVING' && 'Saving transcript segments...'}
-                    {media.status === 'QUEUED' && 'In queue...'}
-                  </p>
-                </>
-              )}
-            </div>
-          )}
         </div>
       </div>
     </div>
