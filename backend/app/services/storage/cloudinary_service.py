@@ -44,7 +44,8 @@ class StorageService:
         if self.has_cloudinary:
             try:
                 resource_type = "video" if media_type == "video" else "auto"
-                result = cloudinary.uploader.upload(
+                upload_func = cloudinary.uploader.upload_large if (media_type == "video" or file_size > 15_000_000) else cloudinary.uploader.upload
+                result = upload_func(
                     file_path,
                     resource_type=resource_type,
                     folder="aivideo_transcriber",
