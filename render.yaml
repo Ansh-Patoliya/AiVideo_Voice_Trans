@@ -3,7 +3,7 @@ databases:
     databaseName: transcriber_db
     user: transcriber_user
     plan: free
-    region: oregon
+    region: singapore
 
 services:
   - type: web
@@ -12,7 +12,7 @@ services:
     dockerfilePath: docker/Dockerfile.backend
     dockerContext: .
     plan: free
-    region: oregon
+    region: singapore
     envVars:
       - key: PORT
         value: 8000
