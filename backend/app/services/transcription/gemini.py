@@ -238,9 +238,9 @@ class GeminiTranscriptionProvider(TranscriptionProvider):
             candidate_models = [
                 self.model_name,
                 "gemini-2.5-flash",
-                "gemini-flash-latest",
-                "gemini-3.5-flash",
-                "gemini-2.0-flash",
+                "gemini-3.8-flash",
+                "gemini-3.7-flash",
+                "gemini-3.6-flash",
             ]
             # Deduplicate while preserving order
             candidate_models = list(dict.fromkeys(candidate_models))
@@ -295,9 +295,9 @@ class GeminiTranscriptionProvider(TranscriptionProvider):
             candidate_models = [
                 self.model_name,
                 "gemini-2.5-flash",
-                "gemini-flash-latest",
-                "gemini-3.5-flash",
-                "gemini-2.0-flash",
+                "gemini-3.8-flash",
+                "gemini-3.7-flash",
+                "gemini-3.6-flash",
             ]
             candidate_models = list(dict.fromkeys(candidate_models))
 
