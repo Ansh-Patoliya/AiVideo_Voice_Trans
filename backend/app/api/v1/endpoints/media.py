@@ -257,11 +257,13 @@ def stream_local_media_file(filename: str, db: Session = Depends(get_db)):
         file_path = Path(settings.TEMP_DIR_PATH) / clean_filename
 
     if not file_path.exists():
-        # 3. Check DB records by local_media_path substring
         media_item = db.query(Media).filter(
             (Media.local_media_path.ilike(f"%{clean_filename}%")) |
             (Media.local_media_path.ilike(f"%{filename}%"))
         ).first()
+        if media_item and media_item.cloudinary_url:
+            from fastapi.responses import RedirectResponse
+            return RedirectResponse(url=media_item.cloudinary_url)
         if media_item and media_item.local_media_path and os.path.exists(media_item.local_media_path):
             file_path = Path(media_item.local_media_path)
 
@@ -273,6 +275,13 @@ def stream_local_media_file(filename: str, db: Session = Depends(get_db)):
             file_path = matches[0]
 
     if not file_path.exists():
+        media_item = db.query(Media).filter(
+            (Media.local_media_path.ilike(f"%{clean_filename}%")) |
+            (Media.local_media_path.ilike(f"%{filename}%"))
+        ).first()
+        if media_item and media_item.cloudinary_url:
+            from fastapi.responses import RedirectResponse
+            return RedirectResponse(url=media_item.cloudinary_url)
         raise HTTPException(status_code=404, detail="Media file not found")
     
     ext = file_path.suffix.lower()
