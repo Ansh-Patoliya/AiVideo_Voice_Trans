@@ -82,7 +82,8 @@ class MediaDownloader:
                     except Exception:
                         pass
 
-            logger.warning(f"FB sniffer did not return success. Output: {result.stdout[:200]}")
+            err_detail = result.stderr.strip() or result.stdout.strip()
+            logger.warning(f"FB sniffer did not return success. Stdout: {result.stdout[:200]} | Stderr: {result.stderr[:300]}")
             return None
         except Exception as e:
             logger.error(f"Playwright FB Ad Library extraction error: {type(e).__name__}: {e}", exc_info=True)
