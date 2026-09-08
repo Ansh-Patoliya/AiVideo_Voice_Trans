@@ -2,6 +2,10 @@ import os
 import re
 import shutil
 import logging
+import asyncio
+import sys
+import json
+import subprocess
 from pathlib import Path
 from typing import Dict, Any, Optional
 import httpx
@@ -31,41 +35,117 @@ class MediaDownloader:
         """
         source_type, platform_name = PlatformDetector.detect(url)
 
-        # Facebook Ad Library URLs cannot be directly downloaded without headless session / specific auth
-        if source_type == SourceType.FACEBOOK_AD_LIBRARY:
-            raise RuntimeError(FALLBACK_ERROR_MESSAGE)
+        # Facebook Ad Library URLs: extract real video URL via Playwright network sniffer
+        if source_type == SourceType.FACEBOOK_AD_LIBRARY or "facebook.com/ads/library" in url.lower():
+            logger.info(f"Extracting video from Facebook Ad Library using headless sniffer: {url}")
+            extracted_media_url = await self._extract_fb_ad_library_video(url)
+            if not extracted_media_url:
+                raise RuntimeError("Could not locate a playable video in this Facebook Ad. Please verify that this ad contains a video.")
+            logger.info("Successfully extracted video URL from FB Ad Library. Downloading stream...")
+            return await self._download_direct_url(extracted_media_url, source_type)
 
-        # Direct HTTP media URL
-        if source_type == SourceType.DIRECT_URL and any(url.lower().endswith(ext) for ext in [".mp4", ".mp3", ".wav", ".m4a", ".webm"]):
+        # Direct HTTP media URL (checking extension before query parameters or CDN domains)
+        clean_url_base = url.split("?")[0].split("#")[0].lower()
+        is_direct = (
+            source_type == SourceType.DIRECT_URL
+            or "fbcdn.net" in url.lower()
+            or any(clean_url_base.endswith(ext) for ext in [".mp4", ".mp3", ".wav", ".m4a", ".webm", ".mov", ".m4v"])
+        )
+        if is_direct:
             return await self._download_direct_url(url, source_type)
 
         # Attempt download using yt-dlp for supported platforms (YouTube, Shorts, supported public reels/videos)
         return await self._download_with_ytdlp(url, source_type)
 
+    def _extract_fb_sync(self, ad_url: str) -> Optional[str]:
+        """
+        Runs headless Playwright in an isolated standalone subprocess to sniff the direct CDN video URL
+        from the Facebook Ad Library page. Running in a dedicated subprocess guarantees
+        complete independence from Uvicorn and Windows asyncio event loop policies.
+        """
+        try:
+            sniffer_script = Path(__file__).parent / "fb_sniffer.py"
+            cmd = [sys.executable, str(sniffer_script), ad_url]
+            logger.info(f"Launching FB sniffer subprocess for {ad_url}")
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=35)
+            
+            # Find JSON output line
+            for line in reversed(result.stdout.strip().splitlines()):
+                line = line.strip()
+                if line.startswith("{") and line.endswith("}"):
+                    try:
+                        data = json.loads(line)
+                        if data.get("success") and data.get("url"):
+                            return data["url"]
+                        elif not data.get("success"):
+                            logger.warning(f"FB sniffer reported failure: {data.get('error')}")
+                    except Exception:
+                        pass
+
+            logger.warning(f"FB sniffer did not return success. Output: {result.stdout[:200]}")
+            return None
+        except Exception as e:
+            logger.error(f"Playwright FB Ad Library extraction error: {type(e).__name__}: {e}", exc_info=True)
+            return None
+
+    async def _extract_fb_ad_library_video(self, ad_url: str) -> Optional[str]:
+        """
+        Uses Playwright headless browser to intercept and capture direct video stream URL
+        from Facebook Ad Library page without requiring manual user extraction.
+        Offloads to worker thread to ensure Windows compatibility without asyncio subprocess issues.
+        """
+        return await asyncio.to_thread(self._extract_fb_sync, ad_url)
+
     async def _download_direct_url(self, url: str, source_type: SourceType) -> Dict[str, Any]:
         try:
-            filename = url.split("/")[-1].split("?")[0]
-            if not filename or "." not in filename:
-                filename = "downloaded_media.mp4"
-            
-            output_path = self.download_dir / f"direct_{int(os.times().elapsed)}_{filename}"
+            import hashlib
+            import time
 
-            async with httpx.AsyncClient(follow_redirects=True, timeout=120.0) as client:
+            clean_url_base = url.split("?")[0].split("#")[0]
+            raw_filename = clean_url_base.split("/")[-1]
+            ext = ".mp4"
+            for possible_ext in [".mp4", ".mp3", ".wav", ".m4a", ".webm", ".mov", ".m4v"]:
+                if clean_url_base.lower().endswith(possible_ext):
+                    ext = possible_ext
+                    break
+
+            # Short safe filename to prevent Windows MAX_PATH errors
+            safe_hash = hashlib.md5(url.encode("utf-8")).hexdigest()[:8]
+            base_clean = re.sub(r'[^a-zA-Z0-9_\-]', '', raw_filename.rsplit(".", 1)[0])[:30] or "video"
+            safe_filename = f"direct_{int(time.time())}_{safe_hash}_{base_clean}{ext}"
+
+            output_path = self.download_dir / safe_filename
+
+            download_headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                "Accept": "*/*",
+                "Referer": "https://www.facebook.com/",
+            }
+
+            async with httpx.AsyncClient(follow_redirects=True, headers=download_headers, timeout=180.0) as client:
                 async with client.stream("GET", url) as response:
                     if response.status_code != 200:
+                        logger.error(f"Direct stream download failed with status: {response.status_code}")
                         raise RuntimeError(FALLBACK_ERROR_MESSAGE)
-                    
+
                     with open(output_path, "wb") as f:
                         async for chunk in response.aiter_bytes(chunk_size=1024 * 64):
                             f.write(chunk)
 
-            title = filename.rsplit(".", 1)[0].replace("_", " ").replace("-", " ").title()
+            title = "Facebook Ad Video" if source_type == SourceType.FACEBOOK_AD_LIBRARY else (base_clean.replace("_", " ").title() if base_clean != "video" else "Direct Video")
+            duration = 0.0
+            try:
+                meta = self.processor.get_media_metadata(str(output_path))
+                duration = float(meta.get("duration", 0.0) or 0.0)
+            except Exception as meta_err:
+                logger.warning(f"Could not extract duration from direct media: {meta_err}")
+
             return {
                 "file_path": str(output_path),
                 "title": title,
-                "duration": 0.0,
+                "duration": duration,
                 "source_type": source_type.value,
-                "mime_type": "video/mp4" if output_path.suffix in [".mp4", ".mov", ".webm"] else "audio/mpeg"
+                "mime_type": "video/mp4" if output_path.suffix.lower() in [".mp4", ".mov", ".webm", ".m4v"] else "audio/mpeg"
             }
         except Exception as e:
             logger.error(f"Direct URL download failed: {e}")
@@ -75,7 +155,7 @@ class MediaDownloader:
         try:
             import yt_dlp
 
-            out_template = str(self.download_dir / "%(id)s_%(title).50s.%(ext)s")
+            out_template = str(self.download_dir / "%(id).30s_%(title).40s.%(ext)s")
             ffmpeg_path = self.processor.ffmpeg_exe
 
             node_path = shutil.which("node")

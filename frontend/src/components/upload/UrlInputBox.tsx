@@ -17,13 +17,22 @@ interface UrlInputBoxProps {
   isProcessing: boolean;
 }
 
+interface DetectedPlatformInfo {
+  type: SourceType;
+  label: string;
+  icon: any;
+  color: string;
+  supported: boolean;
+  warning?: string;
+}
+
 export const UrlInputBox: React.FC<UrlInputBoxProps> = ({ onSubmitUrl, isProcessing }) => {
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   // Real-time platform detection
-  const detectedPlatform = useMemo(() => {
+  const detectedPlatform = useMemo<DetectedPlatformInfo | null>(() => {
     if (!url.trim()) return null;
     const clean = url.trim().toLowerCase();
 
@@ -59,10 +68,8 @@ export const UrlInputBox: React.FC<UrlInputBoxProps> = ({ onSubmitUrl, isProcess
         type: 'facebook_ad_library' as SourceType,
         label: 'Facebook Ad Library',
         icon: Facebook,
-        color: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
-        supported: false,
-        warning:
-          "Direct processing isn't available for this URL. Please download the video and upload the file instead.",
+        color: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+        supported: true,
       };
     }
     if (clean.includes('facebook.com') || clean.includes('fb.watch')) {
