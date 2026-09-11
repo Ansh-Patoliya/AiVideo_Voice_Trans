@@ -5,6 +5,7 @@ from app.models.bookmark import Bookmark
 from app.models.note import Note
 from app.models.favorite import Favourite
 from app.models.pin import Pin
+from app.models.user_memory import UserToneMemory
 
 __all__ = [
     "User",
@@ -18,4 +19,5 @@ __all__ = [
     "Note",
     "Favourite",
     "Pin",
+    "UserToneMemory",
 ]

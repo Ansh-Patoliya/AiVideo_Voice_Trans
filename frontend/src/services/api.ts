@@ -214,9 +214,32 @@ export const api = {
       const res = await apiClient.post(`/ai/${mediaId}/important-sections`);
       return res.data;
     },
+    getToneMemory: async (): Promise<{
+      id?: number;
+      persona_title: string;
+      traits: string[];
+      is_active: boolean;
+      updated_at?: string;
+    }> => {
+      const res = await apiClient.get('/ai/tone-memory');
+      return res.data;
+    },
+    updateToneMemory: async (data: {
+      persona_title?: string;
+      traits?: string[];
+      is_active?: boolean;
+    }) => {
+      const res = await apiClient.put('/ai/tone-memory', data);
+      return res.data;
+    },
+    deleteToneMemory: async () => {
+      const res = await apiClient.delete('/ai/tone-memory');
+      return res.data;
+    },
     rephrasePreview: async (mediaId: number, data: {
       tone?: string;
       custom_instruction?: string;
+      use_memory?: boolean;
     }): Promise<{
       original_text: string;
       rephrased_text: string;
@@ -226,6 +249,8 @@ export const api = {
         total_tokens: number;
         estimated_cost_usd: number;
       };
+      memory_update_notice?: string;
+      applied_persona?: string;
     }> => {
       const res = await apiClient.post(`/ai/${mediaId}/rephrase/preview`, data);
       return res.data;

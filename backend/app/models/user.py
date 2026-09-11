@@ -19,3 +19,4 @@ class User(Base):
     notes = relationship("Note", back_populates="user", cascade="all, delete-orphan")
     favourites = relationship("Favourite", back_populates="user", cascade="all, delete-orphan")
     pins = relationship("Pin", back_populates="user", cascade="all, delete-orphan")
+    tone_memory = relationship("UserToneMemory", back_populates="user", uselist=False, cascade="all, delete-orphan")
