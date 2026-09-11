@@ -193,21 +193,29 @@ class ProcessingPipelineRunner:
             # Sort by offset to ensure strict chronological ordering
             chunk_results.sort(key=lambda x: x[0])
 
-            all_segments: List[TranscriptSegmentData] = []
             detected_language = "en"
-            seq_counter = 0
+            full_text_parts: List[str] = []
 
             for _, chunk_result in chunk_results:
                 if chunk_result.language:
                     detected_language = chunk_result.language
+                if chunk_result.full_text.strip():
+                    full_text_parts.append(chunk_result.full_text.strip())
 
-                for seg in chunk_result.segments:
-                    seg.sequence = seq_counter
-                    seq_counter += 1
-                    all_segments.append(seg)
+            merged_full_text = " ".join(full_text_parts)
+
+            all_segments: List[TranscriptSegmentData] = [
+                TranscriptSegmentData(
+                    start_time=0.0,
+                    end_time=float(media_duration or 0.0),
+                    text=merged_full_text,
+                    speaker=None,
+                    sequence=0,
+                )
+            ]
 
             stt_time = time.perf_counter() - t_stt_start
-            logger.info(f"[PROFILING] STT Transcription finished: {stt_time:.2f}s ({len(all_segments)} segments)")
+            logger.info(f"[PROFILING] STT Transcription finished: {stt_time:.2f}s ({len(merged_full_text)} chars)")
 
             # Step 5: Save Transcript to Database
             # Verify media still exists (user might have deleted or cancelled it during processing)
@@ -218,8 +226,8 @@ class ProcessingPipelineRunner:
 
             t_db_start = time.perf_counter()
             self._update_media_status(db, media_id, MediaStatus.SAVING)
-            
-            full_text = " ".join([s.text for s in all_segments])
+
+            full_text = merged_full_text
 
             existing_transcript = db.query(Transcript).filter(Transcript.media_id == media_id).first()
             if existing_transcript:

@@ -12,7 +12,6 @@ import {
   ArrowDown,
 } from 'lucide-react';
 import { TranscriptSegment } from '../../types';
-import { formatTime } from '../../utils/formatters';
 
 interface TranscriptSegmentItemProps {
   segment: TranscriptSegment;
@@ -135,7 +134,6 @@ export const TranscriptSegmentItem: React.FC<TranscriptSegmentItemProps> = ({
                 title="Click to jump to this video moment"
               >
                 <Play className="w-2.5 h-2.5 fill-current" />
-                <span>{formatTime(segment.start_time)}</span>
               </button>
 
               {segment.speaker && (
@@ -285,14 +283,14 @@ export const TranscriptSegmentItem: React.FC<TranscriptSegmentItemProps> = ({
           <div className="flex flex-col items-start gap-1 shrink-0 pt-0.5">
             <button
               onClick={() => onSeek(segment.start_time)}
-              className={`mono text-[11px] font-medium transition-colors select-none ${
+              className={`transition-colors select-none ${
                 isActive
-                  ? 'text-blue-400 font-semibold'
+                  ? 'text-blue-400'
                   : 'text-slate-500 hover:text-slate-200'
               }`}
               title="Click to seek video"
             >
-              {formatTime(segment.start_time)}
+              <Play className="w-3 h-3 fill-current" />
             </button>
 
             {segment.is_edited && (

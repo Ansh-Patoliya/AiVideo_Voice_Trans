@@ -10,7 +10,6 @@ import {
   FileText,
 } from 'lucide-react';
 import { Transcript } from '../../types';
-import { formatTime } from '../../utils/formatters';
 import { api } from '../../services/api';
 
 interface AIInsightsPanelProps {
@@ -213,9 +212,11 @@ export const AIInsightsPanel: React.FC<AIInsightsPanelProps> = ({
                     <p className="text-[11px] text-slate-400 line-clamp-1">{sec.reason}</p>
                   </div>
 
-                  <span className="mono text-[11px] font-medium text-blue-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800 shrink-0 flex items-center gap-1">
-                    <Play className="w-2.5 h-2.5 fill-current" />
-                    {sec.formatted_time || formatTime(sec.timestamp)}
+                  <span
+                    className="p-1.5 rounded bg-slate-950 text-blue-400 border border-slate-800 shrink-0 flex items-center justify-center"
+                    title="Jump to this moment"
+                  >
+                    <Play className="w-3 h-3 fill-current" />
                   </span>
                 </div>
               ))

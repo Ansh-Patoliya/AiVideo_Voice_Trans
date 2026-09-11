@@ -10,7 +10,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { SearchResultItem } from '../types';
-import { formatTime, formatDate } from '../utils/formatters';
+import { formatDate } from '../utils/formatters';
 import { api } from '../services/api';
 
 interface SearchPageProps {
@@ -144,9 +144,11 @@ export const SearchPage: React.FC<SearchPageProps> = ({ initialQuery = '', onOpe
 
                 <div className="flex items-center gap-2 shrink-0">
                   {res.timestamp !== undefined && res.timestamp !== null && (
-                    <span className="mono text-xs font-bold px-2 py-1 rounded bg-slate-950 text-blue-400 border border-slate-800 flex items-center gap-1">
-                      <Play className="w-2.5 h-2.5 fill-current" />
-                      {formatTime(res.timestamp)}
+                    <span
+                      className="p-1.5 rounded bg-slate-950 text-blue-400 border border-slate-800 flex items-center justify-center"
+                      title="Jump to this moment"
+                    >
+                      <Play className="w-3 h-3 fill-current" />
                     </span>
                   )}
                 </div>

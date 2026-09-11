@@ -32,19 +32,6 @@ class AIAnalysisFullResponse(BaseModel):
     important_sections: Optional[List[AIImportantSectionItem]] = None
 
 
-class RephraseItem(BaseModel):
-    segment_id: int
-    original_text: str
-    rephrased_text: str
-
-
-class RephrasePreviewRequest(BaseModel):
-    scope: str = "all"  # "all" or "particular"
-    segment_ids: Optional[List[int]] = None
-    tone: Optional[str] = "professional"  # professional, casual, simplified, punchy
-    custom_instruction: Optional[str] = None
-
-
 class TokenUsageInfo(BaseModel):
     prompt_tokens: int = 0
     candidates_tokens: int = 0
@@ -52,12 +39,16 @@ class TokenUsageInfo(BaseModel):
     estimated_cost_usd: float = 0.0
 
 
+class RephrasePreviewRequest(BaseModel):
+    tone: Optional[str] = "professional"
+    custom_instruction: Optional[str] = None
+
+
 class RephrasePreviewResponse(BaseModel):
-    items: List[RephraseItem]
+    original_text: str
+    rephrased_text: str
     token_usage: Optional[TokenUsageInfo] = None
 
 
 class ApplyRephraseRequest(BaseModel):
-    items: List[RephraseItem]
-
-
+    rephrased_text: str

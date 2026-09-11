@@ -124,14 +124,14 @@ export const StudioPage: React.FC<StudioPageProps> = ({
 
   const handleAddBookmarkAtCurrentTime = (time: number) => {
     setActiveRightTab('bookmarks');
-    api.bookmarks.create(mediaId, { timestamp: time, label: `Bookmark at ${formatTime(time)}` }).then(() => {
+    api.bookmarks.create(mediaId, { timestamp: time, label: 'Quick Bookmark' }).then(() => {
       loadStudioData();
     });
   };
 
   const handleAddBookmarkFromSegment = (time: number, defaultLabel: string) => {
     setActiveRightTab('bookmarks');
-    api.bookmarks.create(mediaId, { timestamp: time, label: defaultLabel || `Bookmark at ${formatTime(time)}` }).then(() => {
+    api.bookmarks.create(mediaId, { timestamp: time, label: defaultLabel || 'Quick Bookmark' }).then(() => {
       loadStudioData();
     });
   };

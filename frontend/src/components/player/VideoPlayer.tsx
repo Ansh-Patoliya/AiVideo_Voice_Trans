@@ -12,7 +12,6 @@ import {
   Music,
   Crop,
 } from 'lucide-react';
-import { formatTime } from '../../utils/formatters';
 import { Bookmark } from '../../types';
 
 export interface VideoPlayerRef {
@@ -229,7 +228,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
                 return (
                   <div
                     key={bm.id}
-                    title={`${formatTime(bm.timestamp)}: ${bm.label}`}
+                    title={bm.label}
                     style={{ left: `${leftPercent}%` }}
                     className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-1.5 h-2 bg-amber-400 rounded-full pointer-events-none shadow-sm"
                   />
@@ -289,12 +288,6 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(
                 />
               </div>
 
-              {/* Timecode */}
-              <div className="mono text-[11px] text-slate-400 ml-1 select-none">
-                <span className="text-slate-200 font-medium">{formatTime(currentTime)}</span>
-                <span className="mx-1 text-slate-600">/</span>
-                <span>{formatTime(duration)}</span>
-              </div>
             </div>
 
             {/* Right Actions: Bookmark, Speed Dropdown, Fullscreen */}

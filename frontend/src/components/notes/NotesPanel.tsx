@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { StickyNote, Plus, Trash2, Edit2, Play, Check, X } from 'lucide-react';
 import { Note } from '../../types';
-import { formatTime, formatDate } from '../../utils/formatters';
+import { formatDate } from '../../utils/formatters';
 import { api } from '../../services/api';
 
 interface NotesPanelProps {
@@ -100,7 +100,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({
                 onChange={(e) => setAttachTimestamp(e.target.checked)}
                 className="rounded bg-slate-800 border-slate-700 text-blue-600 focus:ring-0"
               />
-              <span>Attach {formatTime(currentTime)}</span>
+              <span>Attach current moment</span>
             </label>
 
             <div className="flex gap-2">
@@ -164,10 +164,10 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({
                     {n.timestamp !== undefined && n.timestamp !== null && (
                       <button
                         onClick={() => onSeek(n.timestamp!)}
-                        className="mono text-[11px] font-medium text-blue-400 hover:text-blue-300 transition-colors"
+                        className="text-blue-400 hover:text-blue-300 transition-colors"
                         title="Seek"
                       >
-                        {formatTime(n.timestamp)}
+                        <Play className="w-3 h-3 fill-current" />
                       </button>
                     )}
                     <span className="text-[10px] text-slate-500">{formatDate(n.created_at)}</span>

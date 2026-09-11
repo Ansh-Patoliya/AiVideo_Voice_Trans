@@ -215,12 +215,11 @@ export const api = {
       return res.data;
     },
     rephrasePreview: async (mediaId: number, data: {
-      scope: 'all' | 'particular';
-      segment_ids?: number[];
       tone?: string;
       custom_instruction?: string;
     }): Promise<{
-      items: Array<{ segment_id: number; original_text: string; rephrased_text: string }>;
+      original_text: string;
+      rephrased_text: string;
       token_usage?: {
         prompt_tokens: number;
         candidates_tokens: number;
@@ -232,7 +231,7 @@ export const api = {
       return res.data;
     },
     rephraseApply: async (mediaId: number, data: {
-      items: Array<{ segment_id: number; original_text: string; rephrased_text: string }>;
+      rephrased_text: string;
     }) => {
       const res = await apiClient.post(`/ai/${mediaId}/rephrase/apply`, data);
       return res.data;

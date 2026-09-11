@@ -1,46 +1,32 @@
 import os
 import re
 import json
-import asyncio
 import logging
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 
 class AIRephraseService:
-    """Service to paraphrase and rephrase dialogue transcripts while strictly preserving original meaning."""
+    """Service to rephrase a transcript paragraph using Gemini AI."""
 
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or settings.GEMINI_API_KEY or os.environ.get("GEMINI_API_KEY")
         self.model_name = settings.GEMINI_ANALYSIS_MODEL or "gemini-3.5-flash"
 
-    async def rephrase_segments(
+    async def rephrase_paragraph(
         self,
-        segments_data: List[Dict[str, Any]],
+        text: str,
         tone: Optional[str] = "professional",
         custom_instruction: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """
-        Rephrases a list of segments in safe batches of up to 35 items.
-        Returns:
-        {
-            "items": [{"segment_id": int, "original_text": str, "rephrased_text": str}],
-            "token_usage": {
-                "prompt_tokens": int,
-                "candidates_tokens": int,
-                "total_tokens": int,
-                "estimated_cost_usd": float
-            }
-        }
-        """
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY is not configured.")
 
-        if not segments_data:
+        if not text or not text.strip():
             return {
-                "items": [],
+                "rephrased_text": "",
                 "token_usage": {
                     "prompt_tokens": 0,
                     "candidates_tokens": 0,
@@ -49,54 +35,6 @@ class AIRephraseService:
                 },
             }
 
-        # Divide segments into batches of up to 35 to guarantee Gemini output fits within token limits
-        BATCH_SIZE = 35
-        batches = [
-            segments_data[i : i + BATCH_SIZE]
-            for i in range(0, len(segments_data), BATCH_SIZE)
-        ]
-
-        sem = asyncio.Semaphore(3)  # Run up to 3 batches concurrently
-
-        async def process_single_batch(batch_items: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
-            async with sem:
-                return await self._process_batch(batch_items, tone, custom_instruction)
-
-        batch_results = await asyncio.gather(*(process_single_batch(b) for b in batches))
-
-        all_items: List[Dict[str, Any]] = []
-        total_prompt_tokens = 0
-        total_candidates_tokens = 0
-        total_tokens = 0
-
-        for items, usage in batch_results:
-            all_items.extend(items)
-            total_prompt_tokens += usage.get("prompt_tokens", 0)
-            total_candidates_tokens += usage.get("candidates_tokens", 0)
-
-        # Total tokens is strictly the sum of prompt + completion tokens
-        total_tokens = total_prompt_tokens + total_candidates_tokens
-
-        # Gemini 3.5 Flash pricing ($0.75 / 1M prompt tokens, $4.50 / 1M output tokens)
-        est_cost = (total_prompt_tokens * 0.75 + total_candidates_tokens * 4.50) / 1_000_000.0
-
-        return {
-            "items": all_items,
-            "token_usage": {
-                "prompt_tokens": total_prompt_tokens,
-                "candidates_tokens": total_candidates_tokens,
-                "total_tokens": total_tokens,
-                "estimated_cost_usd": round(est_cost, 6),
-            },
-        }
-
-    async def _process_batch(
-        self,
-        batch_items: List[Dict[str, Any]],
-        tone: Optional[str],
-        custom_instruction: Optional[str],
-    ) -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
-        # Build tone instruction prompt
         tone_guidance = ""
         tone_lower = (tone or "").strip().lower()
         if tone_lower == "professional":
@@ -114,61 +52,45 @@ class AIRephraseService:
         if custom_instruction and custom_instruction.strip():
             custom_prompt_part = f"\nUser's Specific Custom Instruction: \"{custom_instruction.strip()}\""
 
-        input_payload = [
-            {
-                "segment_id": s["id"],
-                "text": s.get("text", "").strip(),
-            }
-            for s in batch_items
-        ]
-
         prompt = f"""
 You are an expert script editor and speech linguist.
-Your mission is to rephrase and improve the given spoken transcript dialogue segments.
+Your mission is to rewrite the paragraph below as ONE smooth, cohesive, naturally-flowing paragraph, the way a polished narrator would read it aloud.
 {tone_guidance}{custom_prompt_part}
 
 CRITICAL RULES:
-1. ACTIVELY REWORD & REPHRASE: You MUST actively improve the phrasing, remove speech fillers ('uh', 'um', 'like', 'you know', 'ah'), and rewrite each sentence. Do NOT simply copy the original sentence as-is.
-2. STRICT MEANING PRESERVATION: The semantic meaning, facts, and intent MUST remain 100% identical to the original line. Do not invent facts, omit key details, or change the subject.
-3. TIMING & LENGTH COMPATIBILITY: The rephrased version must be comparable in syllable count/length to the original so it fits the natural video speech timing.
-4. 1-TO-1 MAPPING: You MUST return exactly one rephrased entry for every input segment_id in the exact same order.
-5. NO MARKDOWN WRAPPERS: Respond strictly with a JSON array.
+1. WHOLE-PARAGRAPH REWRITE: Rephrase the entire paragraph as continuous prose with natural transitions between sentences. Actively improve phrasing and remove speech fillers ('uh', 'um', 'like', 'you know', 'ah'). Do NOT simply copy the original text as-is.
+2. STRICT MEANING PRESERVATION: The semantic meaning, facts, and intent MUST remain 100% identical to the original. Do not invent facts, omit key details, or change the subject.
+3. LENGTH COMPATIBILITY: The rephrased paragraph must be comparable in overall length to the original so it fits the natural video speech timing.
+4. NO MARKDOWN WRAPPERS: Respond strictly with the JSON object described below.
 
-INPUT SEGMENTS:
-{json.dumps(input_payload, ensure_ascii=False, indent=2)}
+SOURCE PARAGRAPH:
+{text.strip()}
 
 OUTPUT FORMAT:
-Respond ONLY with a valid JSON array of objects with keys "segment_id" (integer), "original_text" (string), and "rephrased_text" (string):
-[
-  {{
-    "segment_id": 1,
-    "original_text": "...",
-    "rephrased_text": "..."
-  }}
-]
+Respond ONLY with a valid JSON object of the form:
+{{
+  "rephrased_text": "The entire rewritten paragraph here."
+}}
 """
 
         raw_response, usage = await self._call_gemini_text(prompt)
-        parsed = self._parse_json_array(raw_response)
+        rephrased = self._parse_response(raw_response)
 
-        results = []
-        parsed_dict = {
-            item.get("segment_id"): item.get("rephrased_text")
-            for item in parsed
-            if isinstance(item, dict)
+        if not rephrased:
+            rephrased = text.strip()
+
+        total_tokens = usage.get("prompt_tokens", 0) + usage.get("candidates_tokens", 0)
+        est_cost = (usage.get("prompt_tokens", 0) * 0.75 + usage.get("candidates_tokens", 0) * 4.50) / 1_000_000.0
+
+        return {
+            "rephrased_text": rephrased,
+            "token_usage": {
+                "prompt_tokens": usage.get("prompt_tokens", 0),
+                "candidates_tokens": usage.get("candidates_tokens", 0),
+                "total_tokens": total_tokens,
+                "estimated_cost_usd": round(est_cost, 6),
+            },
         }
-
-        for s in batch_items:
-            sid = s["id"]
-            orig_text = s.get("text", "")
-            rephrased = parsed_dict.get(sid) or orig_text
-            results.append({
-                "segment_id": sid,
-                "original_text": orig_text,
-                "rephrased_text": rephrased,
-            })
-
-        return results, usage
 
     async def _call_gemini_text(self, prompt: str) -> Tuple[str, Dict[str, int]]:
         candidate_models = [
@@ -179,7 +101,7 @@ Respond ONLY with a valid JSON array of objects with keys "segment_id" (integer)
         ]
         candidate_models = list(dict.fromkeys(candidate_models))
 
-        usage = {"prompt_tokens": 0, "candidates_tokens": 0, "total_tokens": 0}
+        usage: Dict[str, int] = {"prompt_tokens": 0, "candidates_tokens": 0, "total_tokens": 0}
 
         try:
             from google import genai
@@ -198,7 +120,6 @@ Respond ONLY with a valid JSON array of objects with keys "segment_id" (integer)
                         ),
                     )
 
-                    # Extract usage metadata
                     if hasattr(response, "usage_metadata") and response.usage_metadata:
                         um = response.usage_metadata
                         usage["prompt_tokens"] = getattr(um, "prompt_token_count", 0) or 0
@@ -238,7 +159,7 @@ Respond ONLY with a valid JSON array of objects with keys "segment_id" (integer)
                     last_err = m_err
             raise last_err or RuntimeError("Gemini content generation failed.")
 
-    def _parse_json_array(self, raw_text: str) -> List[Dict[str, Any]]:
+    def _parse_response(self, raw_text: str) -> str:
         cleaned = raw_text.strip()
         if cleaned.startswith("```"):
             cleaned = re.sub(r"^```(?:json)?\n?", "", cleaned)
@@ -247,18 +168,16 @@ Respond ONLY with a valid JSON array of objects with keys "segment_id" (integer)
 
         try:
             res = json.loads(cleaned)
-            if isinstance(res, list):
-                return res
-            if isinstance(res, dict) and "items" in res and isinstance(res["items"], list):
-                return res["items"]
-            if isinstance(res, dict) and "rephrased_segments" in res and isinstance(res["rephrased_segments"], list):
-                return res["rephrased_segments"]
-            return []
+            if isinstance(res, dict):
+                return str(res.get("rephrased_text") or "").strip()
         except Exception:
-            match = re.search(r"\[.*\]", cleaned, re.DOTALL)
-            if match:
-                try:
-                    return json.loads(match.group(0))
-                except Exception:
-                    pass
-            return []
+            pass
+
+        match = re.search(r'"rephrased_text"\s*:\s*"(.*?)"\s*\}', cleaned, re.DOTALL)
+        if match:
+            try:
+                return json.loads(f'"{match.group(1)}"')
+            except Exception:
+                return match.group(1)
+
+        return ""

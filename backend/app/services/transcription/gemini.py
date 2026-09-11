@@ -14,45 +14,29 @@ from app.services.transcription.base import (
 
 logger = logging.getLogger(__name__)
 
-# Precision verbatim speech and song lyric transcription prompt
 SYSTEM_PROMPT = """
-You are a world-class audio transcription and lyric-synchronization engine.
-Your task is to transcribe EVERY SINGLE SPOKEN OR SUNG WORD in the provided audio file with precise millisecond-level time alignment.
+You are a world-class audio transcription engine.
+Your task is to transcribe EVERY SINGLE SPOKEN OR SUNG WORD in the provided audio file as one continuous, clean paragraph of text.
 
-CRITICAL TIME-SYNCHRONIZATION & ACCURACY RULES:
-1. Exact Vocal Onset Alignment (CRITICAL FOR SYNC):
-   - Set segment `start_time` to the EXACT millisecond the vocalist begins singing or speaking.
-   - NEVER start timestamps early during instrumental intros, beat buildups, or background music. If the voice starts at 00:14.20, `start_time` MUST be 14.20.
-2. Musical Intros, Solos & Instrumental Gaps:
-   - During guitar solos, drum breaks, interludes, or musical pauses where no human voice is present, DO NOT generate segments.
-   - Resume timestamps with the exact `start_time` when the vocals resume.
-3. Phrase-by-Phrase Granularity (1 Line = 1 Segment):
-   - Break segments naturally by lyrical line or speech phrase (typically 2 to 5 seconds per segment).
-   - Do NOT merge multiple separate lyrical verses into long giant chunks.
-4. Sustained Vocals & Long Notes:
-   - For stretched or sustained singing notes (e.g., "Changes...", "Yeah..."), set `end_time` to when the vocal note actually concludes.
-5. Complete Unbroken Coverage:
-   - NEVER omit or skip any verse, chorus, hook, backing vocal, or repeated line. If a chorus repeats 5 times, output 5 distinct timestamped segments.
-6. Verbatim Accuracy:
+CRITICAL RULES:
+1. Verbatim Accuracy:
    - Transcribe exact spoken or sung words. Do not summarize, clean up, paraphrase, or alter lyrics.
-7. Australian & Regional English Nuances:
+2. Complete Unbroken Coverage (NO EARLY STOPPING):
+   - You MUST transcribe continuously through the ENTIRE duration of this audio clip from start to finish.
+   - NEVER truncate early or skip middle sections. Output every spoken word in chronological order.
+3. One Clean Paragraph:
+   - Output ALL transcribed text as a single flowing paragraph — no line breaks, no timestamps, no segment splits.
+   - Use natural sentence punctuation (periods, commas, question marks) to separate thoughts.
+4. Instrumental Gaps:
+   - During instrumental solos, music breaks, or pauses where no human voice is present, simply skip that portion. Do NOT insert placeholders or notes about music.
+5. Australian & Regional English Nuances:
    - Accurately preserve colloquialisms, regional accents, Australian spelling and terms (e.g. "g'day", "arvo", "brekkie", "fair dinkum", "Melbourne") when spoken.
-8. Continuous Complete Coverage (NO EARLY STOPPING):
-   - You MUST transcribe continuously through the ENTIRE duration of this audio clip from 0.0s to the final second.
-   - NEVER truncate early or skip the middle sections. Output every verse and chorus in chronological order.
-9. Output Format:
+6. Output Format:
    - Return strictly a valid JSON object matching this schema without markdown or commentary outside the JSON:
 
 {
   "language": "en",
-  "segments": [
-    {
-      "start_time": 14.20,
-      "end_time": 18.50,
-      "text": "Exact line of speech or lyrics.",
-      "speaker": null
-    }
-  ]
+  "text": "The entire transcribed speech as one clean paragraph here."
 }
 """
 
@@ -137,14 +121,12 @@ class GeminiTranscriptionProvider(TranscriptionProvider):
         prompt = SYSTEM_PROMPT
         if audio_duration > 0:
             prompt += (
-                f"\nCRITICAL DURATION & TIMING CONSTRAINT: Total audio duration is EXACTLY {audio_duration:.2f} seconds. "
-                f"All start_time and end_time values MUST strictly be in seconds from 0.00 to {audio_duration:.2f} seconds. "
-                f"Under NO circumstances should any timestamp exceed {audio_duration:.2f}."
+                f"\nCRITICAL: Total audio duration is EXACTLY {audio_duration:.2f} seconds. "
+                f"Transcribe ALL speech from start to finish without stopping early."
             )
         if language_hint:
             prompt += f"\nPrimary expected language hint: {language_hint}"
 
-        # Attempt transcription with retries
         max_retries = 3
         last_error = None
 
@@ -152,63 +134,39 @@ class GeminiTranscriptionProvider(TranscriptionProvider):
             try:
                 raw_response = await self._call_gemini_api(str(audio_file), prompt)
                 parsed = self._parse_json_response(raw_response)
-                
+
                 detected_lang = str(parsed.get("language") or "en")
-                raw_segments = parsed.get("segments", [])
-                
-                # Check for timestamp drift
-                parsed_raw_starts = [self._parse_timestamp_to_seconds(seg.get("start_time", 0.0)) for seg in raw_segments]
-                parsed_raw_ends = [self._parse_timestamp_to_seconds(seg.get("end_time", 0.0)) for seg in raw_segments]
-                
-                max_observed = max(parsed_raw_ends or [0.0])
-                scale_factor = 1.0
-                if audio_duration > 5.0 and max_observed > (audio_duration * 1.15):
-                    # Proportional scale correction if model drifted past actual audio duration
-                    scale_factor = audio_duration / max_observed
-                    logger.info(f"Correcting timestamp drift: scaling factor {scale_factor:.3f} (max {max_observed:.1f}s -> {audio_duration:.1f}s)")
+                full_text = str(parsed.get("text") or "").strip()
 
-                processed_segments: List[TranscriptSegmentData] = []
-                full_text_parts = []
-
-                for idx, seg in enumerate(raw_segments):
-                    raw_start = self._parse_timestamp_to_seconds(seg.get("start_time", 0.0)) * scale_factor
-                    raw_end = self._parse_timestamp_to_seconds(seg.get("end_time", raw_start + 2.0)) * scale_factor
-                    
-                    if audio_duration > 0:
-                        raw_start = min(raw_start, audio_duration)
-                        raw_end = min(max(raw_end, raw_start + 0.5), audio_duration)
-
-                    # Apply chunk offset correction
-                    start = raw_start + offset_seconds
-                    end = raw_end + offset_seconds
-                    text = str(seg.get("text", "")).strip()
-                    speaker = self._normalize_speaker_label(seg.get("speaker"))
-
-                    if not text:
-                        continue
-
-                    processed_segments.append(
-                        TranscriptSegmentData(
-                            start_time=round(start, 2),
-                            end_time=round(end, 2),
-                            text=text,
-                            speaker=speaker,
-                            sequence=idx
+                if not full_text:
+                    old_segments = parsed.get("segments", [])
+                    if old_segments:
+                        full_text = " ".join(
+                            str(s.get("text", "")).strip()
+                            for s in old_segments
+                            if str(s.get("text", "")).strip()
                         )
-                    )
-                    full_text_parts.append(text)
 
-                full_text = " ".join(full_text_parts)
+                if not full_text:
+                    raise ValueError("Gemini returned empty transcription text.")
+
+                segment = TranscriptSegmentData(
+                    start_time=offset_seconds,
+                    end_time=offset_seconds + audio_duration,
+                    text=full_text,
+                    speaker=None,
+                    sequence=0,
+                )
 
                 logger.info(
                     f"Transcription completed | Model: {self.model_name} | "
-                    f"Segments: {len(processed_segments)} | Language: {detected_lang}"
+                    f"Length: {len(full_text)} chars | Language: {detected_lang}"
                 )
 
                 return TranscriptionResult(
                     language=detected_lang,
                     full_text=full_text,
-                    segments=processed_segments
+                    segments=[segment],
                 )
 
             except Exception as e:
